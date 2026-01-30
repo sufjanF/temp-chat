@@ -149,6 +149,14 @@ button:disabled,
   border-color: rgba(220, 38, 38, 0.5) !important;
 }
 
+/* Mobile-friendly touch targets */
+@media (max-width: 640px) {
+  button, a, [role="button"] {
+    min-height: 36px;
+    min-width: 36px;
+  }
+}
+
 .hover-orange-glow:hover {
   box-shadow: 0 0 18px rgba(234, 88, 12, 0.35);
 }

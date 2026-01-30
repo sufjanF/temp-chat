@@ -113,35 +113,35 @@ const Page = () => {
       {/* Subtle ambient glow */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[200px] bg-orange-600/5 rounded-full blur-3xl pointer-events-none" />
       
-      <header className="theme-border-secondary border-b p-4 flex items-center justify-between theme-bg-elevated backdrop-blur-sm relative z-10">
-        <div className="flex items-center gap-5">
-          <div className="flex flex-col">
+      <header className="theme-border-secondary border-b p-3 sm:p-4 flex flex-wrap items-center justify-between gap-3 theme-bg-elevated backdrop-blur-sm relative z-10">
+        <div className="flex items-center gap-3 sm:gap-5 min-w-0 flex-1">
+          <div className="flex flex-col min-w-0">
             <span className="text-[10px] theme-text-muted uppercase tracking-wider">Session</span>
             <div className="flex items-center gap-2 mt-0.5">
-              <span className="font-mono text-sm truncate theme-text">{roomId.slice(0, 12)}</span>
+              <span className="font-mono text-xs sm:text-sm truncate theme-text max-w-[80px] sm:max-w-none">{roomId.slice(0, 12)}</span>
               <button
                 onClick={copyLink}
-                className="text-[9px] theme-bg-secondary hover:opacity-80 px-2 py-0.5 theme-text-muted hover:theme-text transition-colors tracking-wider theme-border border"
+                className="text-[9px] theme-bg-secondary hover:opacity-80 px-2 py-0.5 theme-text-muted hover:theme-text transition-colors tracking-wider theme-border border flex-shrink-0"
               >
                 {copyStatus}
               </button>
             </div>
           </div>
 
-          <div className="h-8 w-px theme-border-secondary border-l" />
+          <div className="h-8 w-px theme-border-secondary border-l flex-shrink-0" />
 
-          <div className="flex flex-col">
+          <div className="flex flex-col flex-shrink-0">
             <span className="text-[10px] theme-text-muted uppercase tracking-wider">Countdown</span>
-            <span className="text-sm font-bold font-mono mt-0.5 text-orange-500">
+            <span className="text-xs sm:text-sm font-bold font-mono mt-0.5 text-orange-500">
               {timeRemaining !== null ? formatTimeRemaining(timeRemaining) : "--:--"}
             </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-shrink-0">
           <button
             onClick={toggleTheme}
-            className="text-[10px] theme-bg-secondary hover:opacity-80 px-3 py-2 theme-text transition-all flex items-center justify-center theme-border border"
+            className="text-[10px] theme-bg-secondary hover:opacity-80 p-2 sm:px-3 sm:py-2 theme-text transition-all flex items-center justify-center theme-border border"
             title={theme === "dark" ? "Light mode" : "Dark mode"}
           >
             {theme === "dark" ? (
@@ -165,16 +165,17 @@ const Page = () => {
 
           <button
             onClick={() => destroyRoom()}
-            className="text-[10px] theme-bg-secondary hover-red px-4 py-2 theme-text font-bold transition-all group flex items-center gap-2 disabled:opacity-50 tracking-wider theme-border border"
+            className="text-[10px] theme-bg-secondary hover-red px-2 sm:px-4 py-2 theme-text font-bold transition-all group flex items-center gap-1 sm:gap-2 disabled:opacity-50 tracking-wider theme-border border"
           >
             <span className="group-hover:animate-pulse">◈</span>
-            TERMINATE
+            <span className="hidden min-[400px]:inline">TERMINATE</span>
+            <span className="min-[400px]:hidden">END</span>
           </button>
         </div>
       </header>
 
       {/* MESSAGES */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 relative z-10">
+      <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4 relative z-10">
         {messages?.messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full gap-3">
             <div className="w-12 h-12 theme-border border flex items-center justify-center">
@@ -213,10 +214,10 @@ const Page = () => {
         ))}
       </div>
 
-      <div className="p-4 theme-border-secondary border-t theme-bg-elevated backdrop-blur-sm relative z-10">
-        <div className="flex gap-3">
-          <div className="flex-1 relative group">
-            <span className={`absolute left-4 top-1/2 -translate-y-1/2 text-orange-500 text-xs font-mono ${!isInputFocused ? "animate-pulse" : ""}`}>
+      <div className="p-3 sm:p-4 theme-border-secondary border-t theme-bg-elevated backdrop-blur-sm relative z-10">
+        <div className="flex gap-2 sm:gap-3">
+          <div className="flex-1 relative group min-w-0">
+            <span className={`absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 text-orange-500 text-xs font-mono ${!isInputFocused ? "animate-pulse" : ""}`}>
               ◈
             </span>
             <input
@@ -233,7 +234,7 @@ const Page = () => {
               }}
               placeholder="Enter message..."
               onChange={(e) => setInput(e.target.value)}
-              className="w-full theme-bg-input theme-border border focus:border-orange-600/50 focus:outline-none transition-colors theme-text placeholder:theme-text-faint py-3 pl-10 pr-4 text-sm"
+              className="w-full theme-bg-input theme-border border focus:border-orange-600/50 focus:outline-none transition-colors theme-text placeholder:theme-text-faint py-2.5 sm:py-3 pl-8 sm:pl-10 pr-3 sm:pr-4 text-sm"
             />
           </div>
 
@@ -243,7 +244,7 @@ const Page = () => {
               inputRef.current?.focus()
             }}
             disabled={!input.trim() || isPending}
-            className="bg-gradient-to-r from-orange-500 to-orange-600 theme-text px-6 text-xs font-bold tracking-wider hover:from-orange-500 hover:to-orange-600 hover-orange-glow transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+            className="bg-gradient-to-r from-orange-500 to-orange-600 theme-text px-4 sm:px-6 text-xs font-bold tracking-wider hover:from-orange-500 hover:to-orange-600 hover-orange-glow transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer flex-shrink-0"
           >
             SEND
           </button>
