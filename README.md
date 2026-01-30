@@ -2,6 +2,10 @@
 
 Secure, private, two‑user chat rooms with real‑time messaging that vanish when the 10 minute timer ends.
 
+Live deployment: https://temp-chat-rho.vercel.app/
+
+Note: Actions are slower than local due to Vercel network latency and serverless overhead.
+
 ## Features
 
 - **Ephemeral Rooms**: Chat rooms automatically expire after 10 minutes with a live countdown timer
