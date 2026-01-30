@@ -27,35 +27,15 @@ Secure, private, two‑user chat rooms with real‑time messaging that vanish wh
 
 ## Setup
 
-### Environment Variables
-
-Create a `.env.local` file:
-
-```env
-UPSTASH_REDIS_REST_URL=your_redis_url
-UPSTASH_REDIS_REST_TOKEN=your_redis_token
-```
-
-### Installation
+Run the dev server:
 
 ```bash
-bun install
-```
-
-### Development
-
-```bash
+npm run dev
+# or
 bun run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000)
-
-### Production
-
-```bash
-bun run build
-bun run start
-```
 
 ## Project Structure
 
