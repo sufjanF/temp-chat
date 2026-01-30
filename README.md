@@ -1,36 +1,97 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# temp_chat
 
-## Getting Started
+Secure, private, two‑user chat rooms with real‑time messaging that vanish when the 10 minute timer ends.
 
-First, run the development server:
+## Features
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- **Ephemeral Rooms**: Chat rooms automatically expire after 10 minutes with a live countdown timer
+- **Real-time Messaging**: Instant message delivery via WebSocket connections
+- **Shareable Room Links**: Create a room and invite someone via a unique URL
+- **Anonymous Users**: Auto-generated usernames (e.g., `anonymous-fox-x7k2`)
+- **Manual Termination**: End a session instantly with the terminate control
+- **Dark/Light Mode**: Toggle between themes with persistent preference
+- **Zero Persistence**: Messages vanish when the room expires
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|------------|
+| Framework | [Next.js 16](https://nextjs.org) (App Router) |
+| Runtime | [React 19](https://react.dev) |
+| Language | [TypeScript](https://typescriptlang.org) |
+| Styling | [Tailwind CSS 4](https://tailwindcss.com) |
+| Real-time | [Upstash Realtime](https://upstash.com/docs/redis/realtime/overview) |
+| Database | [Redis](https://upstash.com/redis) |
+| Data Fetching | [TanStack Query](https://tanstack.com/query) |
+| Package Manager | [Bun](https://bun.sh) |
+
+## Setup
+
+### Environment Variables
+
+Create a `.env.local` file:
+
+```env
+UPSTASH_REDIS_REST_URL=your_redis_url
+UPSTASH_REDIS_REST_TOKEN=your_redis_token
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Installation
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+bun install
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Development
 
-## Learn More
+```bash
+bun run dev
+```
 
-To learn more about Next.js, take a look at the following resources:
+Open [http://localhost:3000](http://localhost:3000)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Production
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+bun run build
+bun run start
+```
 
-## Deploy on Vercel
+## Project Structure
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```
+.
+├── public/
+├── src/
+│   ├── app/
+│   │   ├── globals.css                # Global styles + theme variables
+│   │   ├── layout.tsx                 # Root layout
+│   │   ├── page.tsx                   # Landing page
+│   │   ├── room/
+│   │   │   └── [roomId]/page.tsx      # Chat room page
+│   │   └── api/
+│   │       ├── realtime/route.ts      # Realtime auth endpoint
+│   │       └── [[...slugs]]/
+│   │           ├── auth.ts            # Auth helpers
+│   │           └── route.ts           # API handler
+│   ├── components/
+│   │   └── providers.tsx              # App providers
+│   ├── hooks/
+│   │   ├── use-theme.tsx              # Theme toggle hook
+│   │   └── use-username.ts            # Username generation
+│   ├── lib/
+│   │   ├── client.ts                  # API client
+│   │   ├── realtime-client.ts         # Realtime client
+│   │   ├── realtime.ts                # Realtime configuration
+│   │   └── redis.ts                   # Redis client
+│   └── proxy.ts                       # API proxy utilities
+├── eslint.config.mjs
+├── next.config.ts
+├── package.json
+├── postcss.config.mjs
+└── tsconfig.json
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## License
+
+MIT
