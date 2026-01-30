@@ -6,6 +6,8 @@ Live deployment: https://temp-chat-rho.vercel.app/
 
 Note: Actions are slower than local due to Vercel network latency and serverless overhead.
 
+<video src="https://github.com/user-attachments/assets/09671cc9-265b-4400-ab5b-bea4c01e1baa" controls width="800"></video>
+
 ## Features
 
 - **Ephemeral Rooms**: Chat rooms automatically expire after 10 minutes with a live countdown timer
