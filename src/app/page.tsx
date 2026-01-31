@@ -43,7 +43,7 @@ function Lobby() {
       {/* Theme toggle */}
       <button
         onClick={toggleTheme}
-        className="absolute top-4 right-4 text-[10px] theme-bg-secondary hover:opacity-80 px-3 py-2 theme-text-muted hover:theme-text transition-all flex items-center justify-center theme-border border z-20"
+        className="absolute top-4 right-4 text-[10px] theme-bg-secondary hover:opacity-80 px-3 py-2 theme-text transition-all flex items-center justify-center theme-border border z-20"
         title={theme === "dark" ? "Light mode" : "Dark mode"}
       >
         {theme === "dark" ? (
