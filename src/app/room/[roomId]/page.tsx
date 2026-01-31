@@ -109,7 +109,7 @@ const Page = () => {
   }
 
   return (
-    <main className="flex flex-col h-screen max-h-screen overflow-hidden bg-grid relative">
+    <main className="flex flex-col h-screen-safe max-h-screen-safe overflow-hidden bg-grid relative">
       {/* Subtle ambient glow */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[200px] bg-orange-600/5 rounded-full blur-3xl pointer-events-none" />
       

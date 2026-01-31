@@ -37,7 +37,7 @@ function Lobby() {
   })
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-4 bg-grid relative">
+    <main className="flex min-h-screen-safe flex-col items-center justify-center p-4 bg-grid relative overflow-auto">
       {/* Theme toggle */}
       <button
         onClick={toggleTheme}
