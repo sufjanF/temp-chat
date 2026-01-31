@@ -73,7 +73,7 @@ function Lobby() {
           <div className="theme-bg-elevated border border-orange-900/50 p-4 text-center backdrop-blur-sm">
             <p className="text-orange-500 text-xs font-bold tracking-widest">◈ ROOM DESTROYED ◈</p>
             <p className="theme-text-muted text-xs mt-2">
-              All messages were permanently deleted.
+              All messages were permanently deleted
             </p>
           </div>
         )}
