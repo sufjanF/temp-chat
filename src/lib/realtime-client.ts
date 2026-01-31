@@ -1,6 +1,7 @@
-"use client"
+"use client";
 
-import { createRealtime } from "@upstash/realtime/client"
-import type { RealtimeEvents } from "./realtime"
+import { createRealtime } from "@upstash/realtime/client";
 
-export const { useRealtime } = createRealtime<RealtimeEvents>()
+import type { RealtimeEvents } from "./realtime";
+
+export const { useRealtime } = createRealtime<RealtimeEvents>();

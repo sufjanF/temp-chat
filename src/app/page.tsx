@@ -1,40 +1,42 @@
-"use client"
+"use client";
 
-import { useTheme } from "@/hooks/use-theme"
-import { useUsername } from "@/hooks/use-username"
-import { client } from "@/lib/client"
-import { useMutation } from "@tanstack/react-query"
-import { useRouter, useSearchParams } from "next/navigation"
-import { Suspense } from "react"
+import { Suspense } from "react";
 
-const Page = () => {
+import { useMutation } from "@tanstack/react-query";
+import { useRouter, useSearchParams } from "next/navigation";
+
+import { useTheme } from "@/hooks/use-theme";
+import { useUsername } from "@/hooks/use-username";
+import { client } from "@/lib/client";
+
+function Page() {
   return (
     <Suspense>
       <Lobby />
     </Suspense>
-  )
+  );
 }
 
-export default Page
+export default Page;
 
 function Lobby() {
-  const { username } = useUsername()
-  const router = useRouter()
-  const { theme, toggleTheme } = useTheme()
+  const { username } = useUsername();
+  const router = useRouter();
+  const { theme, toggleTheme } = useTheme();
 
-  const searchParams = useSearchParams()
-  const wasDestroyed = searchParams.get("destroyed") === "true"
-  const error = searchParams.get("error")
+  const searchParams = useSearchParams();
+  const wasDestroyed = searchParams.get("destroyed") === "true";
+  const error = searchParams.get("error");
 
   const { mutate: createRoom } = useMutation({
     mutationFn: async () => {
-      const res = await client.room.create.post()
+      const res = await client.room.create.post();
 
       if (res.status === 200) {
-        router.push(`/room/${res.data?.roomId}`)
+        router.push(`/room/${res.data?.roomId}`);
       }
     },
-  })
+  });
 
   return (
     <main className="flex min-h-screen-safe flex-col items-center justify-center p-4 bg-grid relative overflow-auto">
@@ -125,5 +127,5 @@ function Lobby() {
         </div>
       </div>
     </main>
-  )
+  );
 }

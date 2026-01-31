@@ -1,13 +1,14 @@
-import { treaty } from '@elysiajs/eden'
-import type { App } from '../app/api/[[...slugs]]/route'
+import { treaty } from "@elysiajs/eden";
 
-const getBaseUrl = () => {
-  if (typeof window !== 'undefined') {
-    return window.location.origin
+import type { App } from "@/app/api/[[...slugs]]/route";
+
+function getBaseUrl(): string {
+  if (typeof window !== "undefined") {
+    return window.location.origin;
   }
   return process.env.VERCEL_URL
     ? `https://${process.env.VERCEL_URL}`
-    : 'http://localhost:3000'
+    : "http://localhost:3000";
 }
 
-export const client = treaty<App>(getBaseUrl()).api
+export const client = treaty<App>(getBaseUrl()).api;

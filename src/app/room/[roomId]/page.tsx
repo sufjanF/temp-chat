@@ -1,112 +1,115 @@
-"use client"
+"use client";
 
-import { useTheme } from "@/hooks/use-theme"
-import { useUsername } from "@/hooks/use-username"
-import { client } from "@/lib/client"
-import { useRealtime } from "@/lib/realtime-client"
-import { useMutation, useQuery } from "@tanstack/react-query"
-import { format } from "date-fns"
-import { useParams, useRouter } from "next/navigation"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react";
 
-function formatTimeRemaining(seconds: number) {
-  const mins = Math.floor(seconds / 60)
-  const secs = seconds % 60
-  return `${mins}:${secs.toString().padStart(2, "0")}`
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { format } from "date-fns";
+import { useParams, useRouter } from "next/navigation";
+
+import { useTheme } from "@/hooks/use-theme";
+import { useUsername } from "@/hooks/use-username";
+import { client } from "@/lib/client";
+import { useRealtime } from "@/lib/realtime-client";
+
+function formatTimeRemaining(seconds: number): string {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}:${secs.toString().padStart(2, "0")}`;
 }
 
-const Page = () => {
-  const params = useParams()
-  const roomId = params.roomId as string
+function Page() {
+  const params = useParams();
+  const roomId = params.roomId as string;
+  const router = useRouter();
 
-  const router = useRouter()
+  const { username } = useUsername();
+  const { theme, toggleTheme } = useTheme();
 
-  const { username } = useUsername()
-  const { theme, toggleTheme } = useTheme()
-  const [input, setInput] = useState("")
-  const inputRef = useRef<HTMLInputElement>(null)
+  const [input, setInput] = useState("");
+  const [copyStatus, setCopyStatus] = useState("COPY");
+  const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
+  const [isInputFocused, setIsInputFocused] = useState(false);
 
-  const [copyStatus, setCopyStatus] = useState("COPY")
-  const [timeRemaining, setTimeRemaining] = useState<number | null>(null)
-  const [isInputFocused, setIsInputFocused] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const { data: ttlData } = useQuery({
     queryKey: ["ttl", roomId],
     queryFn: async () => {
-      const res = await client.room.ttl.get({ query: { roomId } })
-      return res.data
+      const res = await client.room.ttl.get({ query: { roomId } });
+      return res.data;
     },
-  })
+  });
 
   useEffect(() => {
     if (ttlData?.ttl !== undefined) {
-      setTimeRemaining(ttlData.ttl)
+      setTimeRemaining(ttlData.ttl);
     }
-  }, [ttlData])
+  }, [ttlData]);
 
   useEffect(() => {
-    if (timeRemaining === null || timeRemaining < 0) return
+    if (timeRemaining === null || timeRemaining < 0) return;
 
     if (timeRemaining === 0) {
-      router.push("/?destroyed=true")
-      return
+      router.push("/?destroyed=true");
+      return;
     }
 
     const interval = setInterval(() => {
       setTimeRemaining((prev) => {
         if (prev === null || prev <= 1) {
-          clearInterval(interval)
-          return 0
+          clearInterval(interval);
+          return 0;
         }
-        return prev - 1
-      })
-    }, 1000)
+        return prev - 1;
+      });
+    }, 1000);
 
-    return () => clearInterval(interval)
-  }, [timeRemaining, router])
+    return () => clearInterval(interval);
+  }, [timeRemaining, router]);
 
   const { data: messages, refetch } = useQuery({
     queryKey: ["messages", roomId],
     queryFn: async () => {
-      const res = await client.messages.get({ query: { roomId } })
-      return res.data
+      const res = await client.messages.get({ query: { roomId } });
+      return res.data;
     },
-  })
+  });
 
   const { mutate: sendMessage, isPending } = useMutation({
     mutationFn: async ({ text }: { text: string }) => {
-      await client.messages.post({ sender: username, text }, { query: { roomId } })
-
-      setInput("")
+      await client.messages.post(
+        { sender: username, text },
+        { query: { roomId } }
+      );
+      setInput("");
     },
-  })
+  });
 
   useRealtime({
     channels: [roomId],
     events: ["chat.message", "chat.destroy"],
     onData: ({ event }) => {
       if (event === "chat.message") {
-        refetch()
+        refetch();
       }
-
       if (event === "chat.destroy") {
-        router.push("/?destroyed=true")
+        router.push("/?destroyed=true");
       }
     },
-  })
+  });
 
   const { mutate: destroyRoom } = useMutation({
     mutationFn: async () => {
-      await client.room.delete(null, { query: { roomId } })
+      await client.room.delete(null, { query: { roomId } });
     },
-  })
+  });
 
   const copyLink = () => {
-    const url = window.location.href
-    navigator.clipboard.writeText(url)
-    setCopyStatus("COPIED!")
-    setTimeout(() => setCopyStatus("COPY"), 2000)
-  }
+    const url = window.location.href;
+    navigator.clipboard.writeText(url);
+    setCopyStatus("COPIED!");
+    setTimeout(() => setCopyStatus("COPY"), 2000);
+  };
 
   return (
     <main className="flex flex-col h-screen-safe max-h-screen-safe overflow-hidden bg-grid relative">
@@ -217,7 +220,9 @@ const Page = () => {
       <div className="p-3 sm:p-4 theme-border-secondary border-t theme-bg-elevated backdrop-blur-sm relative z-10">
         <div className="flex gap-2 sm:gap-3">
           <div className="flex-1 relative group min-w-0">
-            <span className={`absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 text-orange-500 text-xs font-mono ${!isInputFocused ? "animate-pulse" : ""}`}>
+            <span
+              className={`absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 text-orange-500 text-xs font-mono ${!isInputFocused ? "animate-pulse" : ""}`}
+            >
               ◈
             </span>
             <input
@@ -228,8 +233,8 @@ const Page = () => {
               onBlur={() => setIsInputFocused(false)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && input.trim()) {
-                  sendMessage({ text: input })
-                  inputRef.current?.focus()
+                  sendMessage({ text: input });
+                  inputRef.current?.focus();
                 }
               }}
               placeholder="Enter message..."
@@ -240,8 +245,8 @@ const Page = () => {
 
           <button
             onClick={() => {
-              sendMessage({ text: input })
-              inputRef.current?.focus()
+              sendMessage({ text: input });
+              inputRef.current?.focus();
             }}
             disabled={!input.trim() || isPending}
             className="bg-gradient-to-r from-orange-500 to-orange-600 theme-text px-4 sm:px-6 text-xs font-bold tracking-wider hover:from-orange-500 hover:to-orange-600 hover-orange-glow transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer flex-shrink-0"
@@ -251,7 +256,7 @@ const Page = () => {
         </div>
       </div>
     </main>
-  )
+  );
 }
 
-export default Page
+export default Page;
