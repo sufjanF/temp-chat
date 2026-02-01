@@ -21,7 +21,7 @@ export default Page;
 
 // Loading overlay component with impressive animations
 function RoomCreationLoader() {
-  const [statusText, setStatusText] = useState("Initializing secure room");
+  const [statusText, setStatusText] = useState("INITIALIZING SECURE ROOM");
   const [dots, setDots] = useState("");
 
   useEffect(() => {
@@ -32,10 +32,10 @@ function RoomCreationLoader() {
 
     // Cycling status messages
     const messages = [
-      "Initializing secure room",
-      "Generating encryption keys",
-      "Establishing connection",
-      "Preparing ephemeral room",
+      "INITIALIZING SECURE ROOM",
+      "GENERATING ENCRYPTION KEYS",
+      "ESTABLISHING CONNECTION",
+      "PREPARING EPHEMERAL ROOM",
     ];
     let messageIndex = 0;
     const messageInterval = setInterval(() => {
