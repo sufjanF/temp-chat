@@ -16,20 +16,7 @@ const DURATION_OPTIONS = [
   { value: 60, label: "1 hour" },
 ] as const;
 
-const LOADER_MESSAGES = [
-  "INITIALIZING SECURE ROOM",
-  "GENERATING ROOM KEYS",
-  "ESTABLISHING CONNECTION",
-  "PREPARING EPHEMERAL ROOM",
-];
-
 // Pre-computed particle positions for deterministic rendering
-const LOADER_PARTICLES = Array.from({ length: 20 }, (_, i) => ({
-  left: `${(i * 17 + 13) % 100}%`,
-  top: `${(i * 23 + 7) % 100}%`,
-  delay: `${(i * 0.25) % 5}s`,
-  duration: `${3 + (i % 4)}s`,
-}));
 
 const LOBBY_PARTICLES = Array.from({ length: 15 }, (_, i) => ({
   left: `${10 + (i * 6) % 80}%`,
@@ -47,98 +34,12 @@ export default function Page() {
 }
 
 function RoomCreationLoader() {
-  const [statusText, setStatusText] = useState(LOADER_MESSAGES[0]);
-  const [dots, setDots] = useState("");
-
-  useEffect(() => {
-    const dotsInterval = setInterval(() => {
-      setDots((prev) => (prev.length >= 3 ? "" : prev + "."));
-    }, 400);
-
-    let messageIndex = 0;
-    const messageInterval = setInterval(() => {
-      messageIndex = (messageIndex + 1) % LOADER_MESSAGES.length;
-      setStatusText(LOADER_MESSAGES[messageIndex]);
-    }, 2000);
-
-    return () => {
-      clearInterval(dotsInterval);
-      clearInterval(messageInterval);
-    };
-  }, []);
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-(--bg-primary)/95 backdrop-blur-md">
-      {/* Background particles */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {LOADER_PARTICLES.map((particle, i) => (
-          <div
-            key={i}
-            className="absolute w-1 h-1 bg-orange-500/30 rounded-full animate-float-particle"
-            style={{
-              left: particle.left,
-              top: particle.top,
-              animationDelay: particle.delay,
-              animationDuration: particle.duration,
-            }}
-          />
-        ))}
+      <div className="flex flex-col items-center gap-4">
+        <div className="w-6 h-6 border-2 border-orange-500/30 border-t-orange-500 rounded-full animate-spin" />
+        <span className="text-orange-500 font-mono text-sm tracking-wider">Initializing secure room</span>
       </div>
-
-      {/* Central loader */}
-      <div className="relative flex flex-col items-center gap-8">
-        <div className="relative w-32 h-32">
-          <div className="absolute inset-0 rounded-full border-2 border-orange-500/20 animate-spin-slow" />
-          <div className="absolute inset-2 rounded-full border border-orange-500/40 animate-pulse-ring" />
-          <div className="absolute inset-4 rounded-full border-2 border-transparent border-t-orange-500 border-r-orange-500/50 animate-spin-reverse" />
-          <div className="absolute inset-6 rounded-full bg-linear-to-br from-orange-500/20 to-orange-600/10 animate-pulse-glow" />
-          
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="relative">
-              <svg
-                className="w-8 h-8 text-orange-500 animate-pulse"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"
-                />
-              </svg>
-              <div className="absolute inset-0 blur-md bg-orange-500/30 animate-pulse" />
-            </div>
-          </div>
-
-          <div className="absolute inset-0 animate-spin-slow">
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-2 h-2 bg-orange-500 rounded-full shadow-[0_0_10px_rgba(234,88,12,0.8)]" />
-          </div>
-          <div className="absolute inset-0 animate-spin-reverse" style={{ animationDuration: "4s" }}>
-            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-orange-400 rounded-full shadow-[0_0_8px_rgba(234,88,12,0.6)]" />
-          </div>
-        </div>
-
-        <div className="text-center space-y-3">
-          <div className="flex items-center justify-center gap-1">
-            <span className="text-orange-500 font-mono text-sm tracking-wider">{statusText}</span>
-            <span className="text-orange-500 font-mono text-sm w-4 text-left">{dots}</span>
-          </div>
-          <div className="w-64 h-0.5 bg-(--border-primary) rounded-full overflow-hidden mx-auto">
-            <div className="h-full bg-linear-to-r from-orange-600 via-orange-500 to-orange-400 animate-progress-indeterminate" />
-          </div>
-          <p className="text-(--text-faint) text-[10px] tracking-widest uppercase">
-            End-to-end encrypted
-          </p>
-        </div>
-      </div>
-
-      {/* Corner accents */}
-      <div className="absolute top-8 left-8 w-8 h-8 border-l-2 border-t-2 border-orange-500/30 animate-pulse" />
-      <div className="absolute top-8 right-8 w-8 h-8 border-r-2 border-t-2 border-orange-500/30 animate-pulse" style={{ animationDelay: "0.5s" }} />
-      <div className="absolute bottom-8 left-8 w-8 h-8 border-l-2 border-b-2 border-orange-500/30 animate-pulse" style={{ animationDelay: "1s" }} />
-      <div className="absolute bottom-8 right-8 w-8 h-8 border-r-2 border-b-2 border-orange-500/30 animate-pulse" style={{ animationDelay: "1.5s" }} />
     </div>
   );
 }
@@ -318,7 +219,7 @@ function Lobby() {
               <svg className="w-3 h-3 text-orange-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
               </svg>
-              ENCRYPTED
+              SECURE
             </span>
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] theme-bg-secondary theme-border border theme-text-muted tracking-wider">
               <svg className="w-3 h-3 text-orange-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
