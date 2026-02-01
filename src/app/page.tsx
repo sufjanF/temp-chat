@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState, useEffect } from "react";
+import { Suspense, useEffect, useState } from "react";
 
 import { useMutation } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -9,7 +9,36 @@ import { useTheme } from "@/hooks/use-theme";
 import { useUsername } from "@/hooks/use-username";
 import { client } from "@/lib/client";
 
-function Page() {
+const DURATION_OPTIONS = [
+  { value: 5, label: "5 min" },
+  { value: 10, label: "10 min" },
+  { value: 30, label: "30 min" },
+  { value: 60, label: "1 hour" },
+] as const;
+
+const LOADER_MESSAGES = [
+  "INITIALIZING SECURE ROOM",
+  "GENERATING ROOM KEYS",
+  "ESTABLISHING CONNECTION",
+  "PREPARING EPHEMERAL ROOM",
+];
+
+// Pre-computed particle positions for deterministic rendering
+const LOADER_PARTICLES = Array.from({ length: 20 }, (_, i) => ({
+  left: `${(i * 17 + 13) % 100}%`,
+  top: `${(i * 23 + 7) % 100}%`,
+  delay: `${(i * 0.25) % 5}s`,
+  duration: `${3 + (i % 4)}s`,
+}));
+
+const LOBBY_PARTICLES = Array.from({ length: 15 }, (_, i) => ({
+  left: `${10 + (i * 6) % 80}%`,
+  top: `${15 + (i * 7) % 70}%`,
+  delay: `${i * 0.4}s`,
+  duration: `${4 + (i % 3)}s`,
+}));
+
+export default function Page() {
   return (
     <Suspense>
       <Lobby />
@@ -17,30 +46,19 @@ function Page() {
   );
 }
 
-export default Page;
-
-// Loading overlay component with impressive animations
 function RoomCreationLoader() {
-  const [statusText, setStatusText] = useState("INITIALIZING SECURE ROOM");
+  const [statusText, setStatusText] = useState(LOADER_MESSAGES[0]);
   const [dots, setDots] = useState("");
 
   useEffect(() => {
-    // Animated dots
     const dotsInterval = setInterval(() => {
       setDots((prev) => (prev.length >= 3 ? "" : prev + "."));
     }, 400);
 
-    // Cycling status messages
-    const messages = [
-      "INITIALIZING SECURE ROOM",
-      "GENERATING ENCRYPTION KEYS",
-      "ESTABLISHING CONNECTION",
-      "PREPARING EPHEMERAL ROOM",
-    ];
     let messageIndex = 0;
     const messageInterval = setInterval(() => {
-      messageIndex = (messageIndex + 1) % messages.length;
-      setStatusText(messages[messageIndex]);
+      messageIndex = (messageIndex + 1) % LOADER_MESSAGES.length;
+      setStatusText(LOADER_MESSAGES[messageIndex]);
     }, 2000);
 
     return () => {
@@ -50,18 +68,18 @@ function RoomCreationLoader() {
   }, []);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--bg-primary)]/95 backdrop-blur-md">
-      {/* Animated background particles */}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-(--bg-primary)/95 backdrop-blur-md">
+      {/* Background particles */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {[...Array(20)].map((_, i) => (
+        {LOADER_PARTICLES.map((particle, i) => (
           <div
             key={i}
             className="absolute w-1 h-1 bg-orange-500/30 rounded-full animate-float-particle"
             style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 5}s`,
-              animationDuration: `${3 + Math.random() * 4}s`,
+              left: particle.left,
+              top: particle.top,
+              animationDelay: particle.delay,
+              animationDuration: particle.duration,
             }}
           />
         ))}
@@ -69,21 +87,12 @@ function RoomCreationLoader() {
 
       {/* Central loader */}
       <div className="relative flex flex-col items-center gap-8">
-        {/* Animated rings */}
         <div className="relative w-32 h-32">
-          {/* Outer spinning ring */}
           <div className="absolute inset-0 rounded-full border-2 border-orange-500/20 animate-spin-slow" />
-          
-          {/* Middle pulsing ring */}
           <div className="absolute inset-2 rounded-full border border-orange-500/40 animate-pulse-ring" />
-          
-          {/* Inner spinning ring (reverse) */}
           <div className="absolute inset-4 rounded-full border-2 border-transparent border-t-orange-500 border-r-orange-500/50 animate-spin-reverse" />
+          <div className="absolute inset-6 rounded-full bg-linear-to-br from-orange-500/20 to-orange-600/10 animate-pulse-glow" />
           
-          {/* Core glow */}
-          <div className="absolute inset-6 rounded-full bg-gradient-to-br from-orange-500/20 to-orange-600/10 animate-pulse-glow" />
-          
-          {/* Center icon */}
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="relative">
               <svg
@@ -99,12 +108,10 @@ function RoomCreationLoader() {
                   d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"
                 />
               </svg>
-              {/* Icon glow */}
               <div className="absolute inset-0 blur-md bg-orange-500/30 animate-pulse" />
             </div>
           </div>
 
-          {/* Orbiting dots */}
           <div className="absolute inset-0 animate-spin-slow">
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-2 h-2 bg-orange-500 rounded-full shadow-[0_0_10px_rgba(234,88,12,0.8)]" />
           </div>
@@ -113,21 +120,15 @@ function RoomCreationLoader() {
           </div>
         </div>
 
-        {/* Status text */}
         <div className="text-center space-y-3">
           <div className="flex items-center justify-center gap-1">
-            <span className="text-orange-500 font-mono text-sm tracking-wider">
-              {statusText}
-            </span>
+            <span className="text-orange-500 font-mono text-sm tracking-wider">{statusText}</span>
             <span className="text-orange-500 font-mono text-sm w-4 text-left">{dots}</span>
           </div>
-          
-          {/* Progress bar */}
-          <div className="w-64 h-0.5 bg-[var(--border-primary)] rounded-full overflow-hidden mx-auto">
-            <div className="h-full bg-gradient-to-r from-orange-600 via-orange-500 to-orange-400 animate-progress-indeterminate" />
+          <div className="w-64 h-0.5 bg-(--border-primary) rounded-full overflow-hidden mx-auto">
+            <div className="h-full bg-linear-to-r from-orange-600 via-orange-500 to-orange-400 animate-progress-indeterminate" />
           </div>
-          
-          <p className="text-[var(--text-faint)] text-[10px] tracking-widest uppercase">
+          <p className="text-(--text-faint) text-[10px] tracking-widest uppercase">
             End-to-end encrypted
           </p>
         </div>
@@ -142,27 +143,19 @@ function RoomCreationLoader() {
   );
 }
 
-// Duration options in minutes
-const DURATION_OPTIONS = [
-  { value: 5, label: "5 min" },
-  { value: 10, label: "10 min" },
-  { value: 30, label: "30 min" },
-  { value: 60, label: "1 hour" },
-] as const;
-
 function Lobby() {
-  const { username } = useUsername();
+  useUsername();
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
-  const [isCreating, setIsCreating] = useState(false);
-  const [selectedDuration, setSelectedDuration] = useState<number>(10);
-  const [previewTime, setPreviewTime] = useState<number>(10 * 60); // seconds
-
   const searchParams = useSearchParams();
+  
+  const [isCreating, setIsCreating] = useState(false);
+  const [selectedDuration, setSelectedDuration] = useState(10);
+  const [previewTime, setPreviewTime] = useState(10 * 60);
+
   const wasDestroyed = searchParams.get("destroyed") === "true";
   const error = searchParams.get("error");
 
-  // Live countdown timer preview
   useEffect(() => {
     setPreviewTime(selectedDuration * 60);
   }, [selectedDuration]);
@@ -172,11 +165,7 @@ function Lobby() {
       setPreviewTime(selectedDuration * 60);
       return;
     }
-
-    const interval = setInterval(() => {
-      setPreviewTime((prev) => prev - 1);
-    }, 1000);
-
+    const interval = setInterval(() => setPreviewTime((prev) => prev - 1), 1000);
     return () => clearInterval(interval);
   }, [previewTime, selectedDuration]);
 
@@ -190,27 +179,21 @@ function Lobby() {
   const { mutate: createRoom } = useMutation({
     mutationFn: async () => {
       setIsCreating(true);
-      // Small delay to show the animation
       await new Promise((resolve) => setTimeout(resolve, 1500));
       const res = await client.room.create.post({ duration: selectedDuration });
-
       if (res.status === 200) {
         router.push(`/room/${res.data?.roomId}`);
       } else {
         setIsCreating(false);
       }
     },
-    onError: () => {
-      setIsCreating(false);
-    },
+    onError: () => setIsCreating(false),
   });
 
   return (
     <main className="flex min-h-screen-safe flex-col items-center justify-center p-4 bg-grid relative overflow-auto">
-      {/* Loading overlay */}
       {isCreating && <RoomCreationLoader />}
       
-      {/* Theme toggle */}
       <button
         onClick={toggleTheme}
         className="absolute top-4 right-4 theme-bg-secondary hover:bg-orange-500/10 p-2.5 theme-text transition-all flex items-center justify-center theme-border border z-20 group"
@@ -235,115 +218,101 @@ function Lobby() {
         )}
       </button>
 
-      {/* Central ambient glow */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-orange-600/[0.03] rounded-full blur-3xl pointer-events-none" />
+      {/* Ambient glow */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-200 h-200 bg-orange-600/3 rounded-full blur-3xl pointer-events-none" />
       
       {/* Floating particles */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {[...Array(15)].map((_, i) => (
+        {LOBBY_PARTICLES.map((particle, i) => (
           <div
             key={i}
             className="absolute w-1 h-1 bg-orange-500/20 rounded-full animate-float-particle"
             style={{
-              left: `${10 + (i * 6) % 80}%`,
-              top: `${15 + (i * 7) % 70}%`,
-              animationDelay: `${i * 0.4}s`,
-              animationDuration: `${4 + (i % 3)}s`,
+              left: particle.left,
+              top: particle.top,
+              animationDelay: particle.delay,
+              animationDuration: particle.duration,
             }}
           />
         ))}
       </div>
       
-      {/* Scanning line effect */}
+      {/* Scan line */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute w-full h-px bg-gradient-to-r from-transparent via-orange-500/20 to-transparent animate-scan-line" />
+        <div className="absolute w-full h-px bg-linear-to-r from-transparent via-orange-500/20 to-transparent animate-scan-line" />
       </div>
       
-      {/* Decorative corner elements */}
+      {/* Corner elements */}
       <div className="absolute top-6 left-6 w-16 h-16 border-l border-t border-orange-500/20 pointer-events-none" />
       <div className="absolute top-6 right-6 w-16 h-16 border-r border-t border-orange-500/20 pointer-events-none" />
       <div className="absolute bottom-6 left-6 w-16 h-16 border-l border-b border-orange-500/20 pointer-events-none" />
       <div className="absolute bottom-6 right-6 w-16 h-16 border-r border-b border-orange-500/20 pointer-events-none" />
       
-      {/* Vignette effect */}
+      {/* Visual overlays */}
       <div className="absolute inset-0 pointer-events-none bg-radial-vignette" />
-      
-      {/* Noise/grain overlay */}
       <div className="absolute inset-0 pointer-events-none opacity-[0.015] bg-noise" />
-      
-      {/* CRT scanlines */}
       <div className="absolute inset-0 pointer-events-none bg-scanlines opacity-[0.03]" />
       
       <div className="w-full max-w-md space-y-6 relative z-10">
         {/* Status notifications */}
         {wasDestroyed && (
           <div className="theme-bg-elevated border border-orange-500/30 p-4 text-center backdrop-blur-md relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-r from-orange-500/5 via-orange-500/10 to-orange-500/5" />
+            <div className="absolute inset-0 bg-linear-to-r from-orange-500/5 via-orange-500/10 to-orange-500/5" />
             <div className="relative">
               <div className="flex items-center justify-center gap-2 mb-2">
                 <span className="w-2 h-2 bg-orange-500 rounded-full animate-pulse" />
                 <p className="text-orange-500 text-xs font-bold tracking-widest">ROOM DESTROYED</p>
                 <span className="w-2 h-2 bg-orange-500 rounded-full animate-pulse" />
               </div>
-              <p className="theme-text-muted text-xs">
-                All messages were permanently deleted
-              </p>
+              <p className="theme-text-muted text-xs">All messages were permanently deleted</p>
             </div>
           </div>
         )}
+        
         {error === "room-not-found" && (
           <div className="theme-bg-elevated border border-orange-500/30 p-4 text-center backdrop-blur-md relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-r from-orange-500/5 via-orange-500/10 to-orange-500/5" />
+            <div className="absolute inset-0 bg-linear-to-r from-orange-500/5 via-orange-500/10 to-orange-500/5" />
             <div className="relative">
               <div className="flex items-center justify-center gap-2 mb-2">
                 <span className="w-2 h-2 bg-orange-500 rounded-full" />
                 <p className="text-orange-500 text-xs font-bold tracking-widest">ROOM NOT FOUND</p>
                 <span className="w-2 h-2 bg-orange-500 rounded-full" />
               </div>
-              <p className="theme-text-muted text-xs">
-                This room may have expired or never existed
-              </p>
+              <p className="theme-text-muted text-xs">This room may have expired or never existed</p>
             </div>
           </div>
         )}
+        
         {error === "room-full" && (
           <div className="theme-bg-elevated border border-orange-500/30 p-4 text-center backdrop-blur-md relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-r from-orange-500/5 via-orange-500/10 to-orange-500/5" />
+            <div className="absolute inset-0 bg-linear-to-r from-orange-500/5 via-orange-500/10 to-orange-500/5" />
             <div className="relative">
               <div className="flex items-center justify-center gap-2 mb-2">
                 <span className="w-2 h-2 bg-orange-500 rounded-full" />
                 <p className="text-orange-500 text-xs font-bold tracking-widest">ROOM FULL</p>
                 <span className="w-2 h-2 bg-orange-500 rounded-full" />
               </div>
-              <p className="theme-text-muted text-xs">
-                This room is at maximum capacity
-              </p>
+              <p className="theme-text-muted text-xs">This room is at maximum capacity</p>
             </div>
           </div>
         )}
 
         {/* Hero section */}
         <div className="text-center space-y-5">
-          {/* Animated logo container */}
           <div className="relative inline-block group">
-            {/* Multiple glow layers */}
             <div className="absolute -inset-8 bg-orange-500/10 blur-2xl rounded-full animate-pulse-glow" />
             <div className="absolute -inset-4 bg-orange-500/5 blur-xl rounded-full animate-breathe" />
-            
-            {/* Main logo with dissolve effect */}
             <h1 className="relative text-5xl sm:text-6xl md:text-7xl font-bold tracking-tight theme-text logo-dissolve">
               temp<span className="text-orange-500 animate-flicker">_</span>chat
             </h1>
           </div>
           
-          {/* Tagline with decorative elements */}
           <div className="flex items-center justify-center gap-3">
-            <div className="h-px w-8 bg-gradient-to-r from-transparent to-orange-500/50" />
+            <div className="h-px w-8 bg-linear-to-r from-transparent to-orange-500/50" />
             <p className="theme-text-muted text-sm tracking-wide">Messages vanish. Privacy remains.</p>
-            <div className="h-px w-8 bg-gradient-to-l from-transparent to-orange-500/50" />
+            <div className="h-px w-8 bg-linear-to-l from-transparent to-orange-500/50" />
           </div>
           
-          {/* Feature badges */}
           <div className="flex items-center justify-center gap-2 flex-wrap">
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] theme-bg-secondary theme-border border theme-text-muted tracking-wider">
               <svg className="w-3 h-3 text-orange-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -371,14 +340,10 @@ function Lobby() {
 
         {/* Main card */}
         <div className="theme-border border theme-bg-elevated backdrop-blur-md relative overflow-hidden animate-border-pulse">
-          {/* Card glow effect */}
-          <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 via-transparent to-orange-600/5 pointer-events-none" />
-          
-          {/* Top accent line */}
-          <div className="h-0.5 bg-gradient-to-r from-transparent via-orange-500 to-transparent" />
+          <div className="absolute inset-0 bg-linear-to-br from-orange-500/5 via-transparent to-orange-600/5 pointer-events-none" />
+          <div className="h-0.5 bg-linear-to-r from-transparent via-orange-500 to-transparent" />
           
           <div className="p-6 space-y-5 relative">
-            {/* Timer selection */}
             <div className="space-y-3">
               <label className="flex items-center justify-between">
                 <span className="flex items-center theme-text-secondary text-xs tracking-wider uppercase">
@@ -392,6 +357,7 @@ function Lobby() {
                   {formatPreviewTime(previewTime)}
                 </span>
               </label>
+              
               <div className="grid grid-cols-4 gap-2">
                 {DURATION_OPTIONS.map((option) => (
                   <button
@@ -405,7 +371,7 @@ function Lobby() {
                     }`}
                   >
                     {selectedDuration === option.value && (
-                      <div className="absolute inset-0 bg-gradient-to-t from-orange-500/10 to-transparent" />
+                      <div className="absolute inset-0 bg-linear-to-t from-orange-500/10 to-transparent" />
                     )}
                     <span className="relative">{option.label}</span>
                   </button>
@@ -413,15 +379,12 @@ function Lobby() {
               </div>
             </div>
 
-            {/* CTA Button */}
             <button
               onClick={() => createRoom()}
-              className="w-full relative overflow-hidden bg-gradient-to-r from-orange-500 to-orange-600 text-white p-3.5 text-sm font-bold transition-all cursor-pointer disabled:opacity-50 tracking-wider group"
+              className="w-full relative overflow-hidden bg-linear-to-r from-orange-500 to-orange-600 text-white p-3.5 text-sm font-bold transition-all cursor-pointer disabled:opacity-50 tracking-wider group"
             >
-              {/* Button shine effect */}
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-              {/* Button glow */}
-              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-t from-orange-600/50 to-transparent" />
+              <div className="absolute inset-0 bg-linear-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity bg-linear-to-t from-orange-600/50 to-transparent" />
               <span className="relative flex items-center justify-center gap-2">
                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
@@ -430,14 +393,12 @@ function Lobby() {
               </span>
             </button>
             
-            {/* Info text */}
             <p className="theme-text-faint text-[10px] text-center tracking-wide">
               Room self-destructs after {selectedDuration === 60 ? "1 hour" : `${selectedDuration} minutes`}
             </p>
           </div>
           
-          {/* Bottom accent line */}
-          <div className="h-0.5 bg-gradient-to-r from-transparent via-orange-500/50 to-transparent" />
+          <div className="h-0.5 bg-linear-to-r from-transparent via-orange-500/50 to-transparent" />
         </div>
       </div>
     </main>

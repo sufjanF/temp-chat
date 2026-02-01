@@ -1,6 +1,6 @@
 # temp_chat
 
-Secure, private, two‑user chat rooms with real‑time messaging that vanish when the 10 minute timer ends.
+Secure, private, two‑user chat rooms with real‑time messaging that vanish when the room timer ends.
 
 Live deployment: https://temp-chat-rho.vercel.app/
 
@@ -10,10 +10,12 @@ Note: Actions are slower than local due to Vercel network latency and serverless
 
 ## Features
 
-- **Ephemeral Rooms**: Chat rooms automatically expire after 10 minutes with a live countdown timer
+- **Ephemeral Rooms**: Rooms expire when the timer ends, with a live countdown
+- **Changeable Timer**: Set the room duration before or during a session
 - **Real-time Messaging**: Instant message delivery via WebSocket connections
+- **Typing Indicator**: Shows when the other person is typing
+- **Read Receipts**: See when messages have been read
 - **Shareable Room Links**: Create a room and invite someone via a unique URL
-- **Anonymous Users**: Auto-generated usernames (e.g., `anonymous-fox-x7k2`)
 - **Manual Termination**: End a session instantly with the terminate control
 - **Dark/Light Mode**: Toggle between themes with persistent preference
 - **Zero Persistence**: Messages vanish when the room expires

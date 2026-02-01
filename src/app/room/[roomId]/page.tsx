@@ -17,7 +17,12 @@ function formatTimeRemaining(seconds: number): string {
   return `${mins}:${secs.toString().padStart(2, "0")}`;
 }
 
-function Page() {
+interface ReadReceipt {
+  readBy: string;
+  timestamp: number;
+}
+
+export default function Page() {
   const params = useParams();
   const roomId = params.roomId as string;
   const router = useRouter();
@@ -30,12 +35,12 @@ function Page() {
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
   const [isInputFocused, setIsInputFocused] = useState(false);
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
-  const [readReceipts, setReadReceipts] = useState<Map<string, { readBy: string; timestamp: number }[]>>(new Map());
+  const [readReceipts, setReadReceipts] = useState<Map<string, ReadReceipt[]>>(new Map());
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const lastTypingStateRef = useRef<boolean>(false);
+  const lastTypingStateRef = useRef(false);
 
   const { data: ttlData } = useQuery({
     queryKey: ["ttl", roomId],
@@ -45,20 +50,18 @@ function Page() {
     },
   });
 
-  useEffect(() => {
-    if (ttlData?.ttl !== undefined) {
-      setTimeRemaining(ttlData.ttl);
-    }
-  }, [ttlData]);
+  // Initialize timeRemaining from TTL data
+  const initialTTL = ttlData?.ttl;
+  if (timeRemaining === null && initialTTL !== undefined) {
+    setTimeRemaining(initialTTL);
+  }
 
   useEffect(() => {
     if (timeRemaining === null || timeRemaining < 0) return;
-
     if (timeRemaining === 0) {
       router.push("/?destroyed=true");
       return;
     }
-
     const interval = setInterval(() => {
       setTimeRemaining((prev) => {
         if (prev === null || prev <= 1) {
@@ -68,7 +71,6 @@ function Page() {
         return prev - 1;
       });
     }, 1000);
-
     return () => clearInterval(interval);
   }, [timeRemaining, router]);
 
@@ -82,52 +84,32 @@ function Page() {
 
   const { mutate: sendMessage, isPending } = useMutation({
     mutationFn: async ({ text }: { text: string }) => {
-      await client.messages.post(
-        { sender: username, text },
-        { query: { roomId } }
-      );
+      await client.messages.post({ sender: username, text }, { query: { roomId } });
       setInput("");
-      // Clear typing indicator when message is sent
       sendTypingIndicator(false);
     },
   });
 
-  // Typing indicator mutation
   const { mutate: sendTypingIndicator } = useMutation({
     mutationFn: async (isTyping: boolean) => {
       if (lastTypingStateRef.current === isTyping) return;
       lastTypingStateRef.current = isTyping;
-      await client.typing.post(
-        { username, isTyping },
-        { query: { roomId } }
-      );
+      await client.typing.post({ username, isTyping }, { query: { roomId } });
     },
   });
 
-  // Read receipt mutation
   const { mutate: sendReadReceipt } = useMutation({
     mutationFn: async (messageId: string) => {
-      await client.read.post(
-        { messageId, readBy: username },
-        { query: { roomId } }
-      );
+      await client.read.post({ messageId, readBy: username }, { query: { roomId } });
     },
   });
 
-  // Handle typing indicator with debounce
   const handleTyping = useCallback(() => {
     sendTypingIndicator(true);
-    
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
-    }
-    
-    typingTimeoutRef.current = setTimeout(() => {
-      sendTypingIndicator(false);
-    }, 2000);
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => sendTypingIndicator(false), 2000);
   }, [sendTypingIndicator]);
 
-  // Copy message to clipboard
   const copyMessage = useCallback((messageId: string, text: string) => {
     navigator.clipboard.writeText(text);
     setCopiedMessageId(messageId);
@@ -140,37 +122,34 @@ function Page() {
     onData: ({ event, data }) => {
       if (event === "chat.message") {
         refetch();
-        // Send read receipt for new messages from others
-        const messageData = data as { id: string; sender: string };
-        if (messageData.sender !== username) {
-          sendReadReceipt(messageData.id);
-        }
+        const msg = data as { id: string; sender: string };
+        if (msg.sender !== username) sendReadReceipt(msg.id);
       }
       if (event === "chat.destroy") {
         router.push("/?destroyed=true");
       }
       if (event === "chat.typing") {
-        const typingData = data as { username: string; isTyping: boolean };
-        if (typingData.username !== username) {
+        const typing = data as { username: string; isTyping: boolean };
+        if (typing.username !== username) {
           setTypingUsers((prev) => {
             const next = new Set(prev);
-            if (typingData.isTyping) {
-              next.add(typingData.username);
+            if (typing.isTyping) {
+              next.add(typing.username);
             } else {
-              next.delete(typingData.username);
+              next.delete(typing.username);
             }
             return next;
           });
         }
       }
       if (event === "chat.read") {
-        const readData = data as { messageId: string; readBy: string; timestamp: number };
-        if (readData.readBy !== username) {
+        const receipt = data as { messageId: string; readBy: string; timestamp: number };
+        if (receipt.readBy !== username) {
           setReadReceipts((prev) => {
             const next = new Map(prev);
-            const existing = next.get(readData.messageId) || [];
-            if (!existing.some((r) => r.readBy === readData.readBy)) {
-              next.set(readData.messageId, [...existing, { readBy: readData.readBy, timestamp: readData.timestamp }]);
+            const existing = next.get(receipt.messageId) || [];
+            if (!existing.some((r) => r.readBy === receipt.readBy)) {
+              next.set(receipt.messageId, [...existing, { readBy: receipt.readBy, timestamp: receipt.timestamp }]);
             }
             return next;
           });
@@ -179,53 +158,46 @@ function Page() {
     },
   });
 
-  // Send read receipts for existing messages when component mounts
   useEffect(() => {
     if (messages?.messages) {
       messages.messages.forEach((msg) => {
-        if (msg.sender !== username) {
-          sendReadReceipt(msg.id);
-        }
+        if (msg.sender !== username) sendReadReceipt(msg.id);
       });
     }
   }, [messages?.messages, username, sendReadReceipt]);
 
   const { mutate: destroyRoom } = useMutation({
-    mutationFn: async () => {
-      await client.room.delete(null, { query: { roomId } });
-    },
+    mutationFn: () => client.room.delete(null, { query: { roomId } }),
   });
 
   const copyLink = () => {
-    const url = window.location.href;
-    navigator.clipboard.writeText(url);
+    navigator.clipboard.writeText(window.location.href);
     setCopyStatus("COPIED!");
     setTimeout(() => setCopyStatus("COPY"), 2000);
   };
 
   return (
     <main className="flex flex-col h-screen-safe max-h-screen-safe overflow-hidden bg-grid relative">
-      {/* Subtle ambient glow */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[200px] bg-orange-600/5 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-200 h-50 bg-orange-600/5 rounded-full blur-3xl pointer-events-none" />
       
       <header className="theme-border-secondary border-b p-3 sm:p-4 flex flex-wrap items-center justify-between gap-3 theme-bg-elevated backdrop-blur-sm relative z-10">
         <div className="flex items-center gap-3 sm:gap-5 min-w-0 flex-1">
           <div className="flex flex-col min-w-0">
             <span className="text-[10px] theme-text-muted uppercase tracking-wider">Session</span>
             <div className="flex items-center gap-2 mt-0.5">
-              <span className="font-mono text-xs sm:text-sm truncate theme-text max-w-[80px] sm:max-w-none">{roomId.slice(0, 12)}</span>
+              <span className="font-mono text-xs sm:text-sm truncate theme-text max-w-20 sm:max-w-none">{roomId.slice(0, 12)}</span>
               <button
                 onClick={copyLink}
-                className="text-[9px] theme-bg-secondary hover:opacity-80 px-2 py-0.5 theme-text-muted hover:theme-text transition-colors tracking-wider theme-border border flex-shrink-0"
+                className="text-[9px] theme-bg-secondary hover:opacity-80 px-2 py-0.5 theme-text-muted hover:theme-text transition-colors tracking-wider theme-border border shrink-0"
               >
                 {copyStatus}
               </button>
             </div>
           </div>
 
-          <div className="h-8 w-px theme-border-secondary border-l flex-shrink-0" />
+          <div className="h-8 w-px theme-border-secondary border-l shrink-0" />
 
-          <div className="flex flex-col flex-shrink-0">
+          <div className="flex flex-col shrink-0">
             <span className="text-[10px] theme-text-muted uppercase tracking-wider">Countdown</span>
             <span className="text-xs sm:text-sm font-bold font-mono mt-0.5 text-orange-500">
               {timeRemaining !== null ? formatTimeRemaining(timeRemaining) : "--:--"}
@@ -233,7 +205,7 @@ function Page() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={toggleTheme}
             className="text-[10px] theme-bg-secondary hover:opacity-80 p-2 sm:px-3 sm:py-2 theme-text transition-all flex items-center justify-center theme-border border"
@@ -269,16 +241,14 @@ function Page() {
         </div>
       </header>
 
-      {/* MESSAGES */}
+      {/* Messages */}
       <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4 relative z-10">
         {messages?.messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full gap-3">
             <div className="w-12 h-12 theme-border border flex items-center justify-center">
               <span className="theme-text-faint text-lg">◇</span>
             </div>
-            <p className="theme-text-faint text-xs tracking-wider uppercase">
-              No messages yet
-            </p>
+            <p className="theme-text-faint text-xs tracking-wider uppercase">No messages yet</p>
           </div>
         )}
 
@@ -286,19 +256,10 @@ function Page() {
           <div key={msg.id} className="flex flex-col items-start group">
             <div className="max-w-[80%]">
               <div className="flex items-baseline gap-3 mb-1.5">
-                <span
-                  className={`text-[10px] font-bold tracking-wider ${
-                    msg.sender === username ? "text-orange-500" : "theme-text-secondary"
-                  }`}
-                >
+                <span className={`text-[10px] font-bold tracking-wider ${msg.sender === username ? "text-orange-500" : "theme-text-secondary"}`}>
                   {msg.sender === username ? "YOU" : "THEM"}
                 </span>
-
-                <span className="text-[10px] theme-text-faint font-mono">
-                  {format(msg.timestamp, "HH:mm:ss")}
-                </span>
-
-                {/* Copy message button */}
+                <span className="text-[10px] theme-text-faint font-mono">{format(msg.timestamp, "HH:mm:ss")}</span>
                 <button
                   onClick={() => copyMessage(msg.id, msg.text)}
                   className="text-[9px] theme-text-faint hover:theme-text opacity-0 group-hover:opacity-100 transition-opacity tracking-wider"
@@ -308,33 +269,24 @@ function Page() {
                 </button>
               </div>
 
-              <div className={`text-sm theme-text-secondary leading-relaxed break-all pl-3 border-l-2 ${
-                msg.sender === username ? "border-orange-600/40" : "theme-border-secondary"
-              }`}>
+              <div className={`text-sm theme-text-secondary leading-relaxed break-all pl-3 border-l-2 ${msg.sender === username ? "border-orange-600/40" : "theme-border-secondary"}`}>
                 {msg.text}
               </div>
 
-              {/* Read receipts for own messages */}
-              {msg.sender === username && readReceipts.get(msg.id)?.length ? (
+              {msg.sender === username && (
                 <div className="flex items-center gap-1 mt-1 pl-3">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-orange-500">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={readReceipts.get(msg.id)?.length ? "text-orange-500" : "theme-text-faint"}>
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
-                  <span className="text-[9px] text-orange-500/70 tracking-wider">READ</span>
+                  <span className={`text-[9px] tracking-wider ${readReceipts.get(msg.id)?.length ? "text-orange-500/70" : "theme-text-faint"}`}>
+                    {readReceipts.get(msg.id)?.length ? "READ" : "SENT"}
+                  </span>
                 </div>
-              ) : msg.sender === username ? (
-                <div className="flex items-center gap-1 mt-1 pl-3">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="theme-text-faint">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                  <span className="text-[9px] theme-text-faint tracking-wider">SENT</span>
-                </div>
-              ) : null}
+              )}
             </div>
           </div>
         ))}
 
-        {/* Typing indicator */}
         {typingUsers.size > 0 && (
           <div className="flex items-center gap-2 pl-3 animate-pulse">
             <div className="flex gap-1">
@@ -342,9 +294,7 @@ function Page() {
               <span className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
               <span className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
             </div>
-            <span className="text-[10px] theme-text-muted tracking-wider">
-              THEY are typing...
-            </span>
+            <span className="text-[10px] theme-text-muted tracking-wider">THEY are typing...</span>
           </div>
         )}
       </div>
@@ -352,13 +302,12 @@ function Page() {
       <div className="p-3 sm:p-4 theme-border-secondary border-t theme-bg-elevated backdrop-blur-sm relative z-10">
         <div className="flex gap-2 sm:gap-3">
           <div className="flex-1 relative group min-w-0">
-            <span
-              className={`absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 text-orange-500 text-xs font-mono ${!isInputFocused ? "animate-pulse" : ""}`}
-            >
+            <span className={`absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 text-orange-500 text-xs font-mono ${!isInputFocused ? "animate-pulse" : ""}`}>
               ◈
             </span>
             <input
               autoFocus
+              ref={inputRef}
               type="text"
               value={input}
               onFocus={() => setIsInputFocused(true)}
@@ -372,9 +321,7 @@ function Page() {
               placeholder="Enter message..."
               onChange={(e) => {
                 setInput(e.target.value);
-                if (e.target.value.trim()) {
-                  handleTyping();
-                }
+                if (e.target.value.trim()) handleTyping();
               }}
               className="w-full theme-bg-input theme-border border focus:border-orange-600/50 focus:outline-none transition-colors theme-text placeholder:theme-text-faint py-2.5 sm:py-3 pl-8 sm:pl-10 pr-3 sm:pr-4 text-sm"
             />
@@ -386,7 +333,7 @@ function Page() {
               inputRef.current?.focus();
             }}
             disabled={!input.trim() || isPending}
-            className="bg-gradient-to-r from-orange-500 to-orange-600 px-4 sm:px-6 text-xs font-bold tracking-wider hover:from-orange-400 hover:to-orange-500 hover-orange-glow transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer flex-shrink-0 text-white"
+            className="bg-linear-to-r from-orange-500 to-orange-600 px-4 sm:px-6 text-xs font-bold tracking-wider hover:from-orange-400 hover:to-orange-500 hover-orange-glow transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer shrink-0 text-white"
           >
             SEND
           </button>
@@ -395,5 +342,3 @@ function Page() {
     </main>
   );
 }
-
-export default Page;

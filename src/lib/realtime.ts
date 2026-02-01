@@ -1,4 +1,4 @@
-import { InferRealtimeEvents, Realtime } from "@upstash/realtime";
+import { type InferRealtimeEvents, Realtime } from "@upstash/realtime";
 import { z } from "zod";
 
 import { redis } from "@/lib/redis";
@@ -12,25 +12,12 @@ const messageSchema = z.object({
   token: z.string().optional(),
 });
 
-const typingSchema = z.object({
-  username: z.string(),
-  isTyping: z.boolean(),
-});
-
-const readReceiptSchema = z.object({
-  messageId: z.string(),
-  readBy: z.string(),
-  timestamp: z.number(),
-});
-
 const schema = {
   chat: {
     message: messageSchema,
-    destroy: z.object({
-      isDestroyed: z.literal(true),
-    }),
-    typing: typingSchema,
-    read: readReceiptSchema,
+    destroy: z.object({ isDestroyed: z.literal(true) }),
+    typing: z.object({ username: z.string(), isTyping: z.boolean() }),
+    read: z.object({ messageId: z.string(), readBy: z.string(), timestamp: z.number() }),
   },
 };
 

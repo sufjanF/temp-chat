@@ -9,6 +9,7 @@ class AuthError extends Error {
   }
 }
 
+/** Validates room access via token cookie */
 export const authMiddleware = new Elysia({ name: "auth" })
   .error({ AuthError })
   .onError(({ code, set }) => {
@@ -22,7 +23,7 @@ export const authMiddleware = new Elysia({ name: "auth" })
     const token = cookie["x-auth-token"].value as string | undefined;
 
     if (!roomId || !token) {
-      throw new AuthError("Missing roomId or token.");
+      throw new AuthError("Missing roomId or token");
     }
 
     const connected = await redis.hget<string[]>(`meta:${roomId}`, "connected");

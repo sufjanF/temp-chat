@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { nanoid } from "nanoid";
 
 import { redis } from "./lib/redis";
@@ -8,10 +8,12 @@ interface RoomMeta extends Record<string, unknown> {
   createdAt: number;
 }
 
-export async function proxy(req: NextRequest): Promise<NextResponse> {
-  const pathname = req.nextUrl.pathname;
+const MAX_USERS = 2;
 
-  const roomMatch = pathname.match(/^\/room\/([^/]+)$/);
+/** Handles room access control and token assignment */
+export async function proxy(req: NextRequest): Promise<NextResponse> {
+  const roomMatch = req.nextUrl.pathname.match(/^\/room\/([^/]+)$/);
+
   if (!roomMatch) {
     return NextResponse.redirect(new URL("/", req.url));
   }
@@ -29,12 +31,12 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
     return NextResponse.next();
   }
 
-  if (meta.connected.length >= 2) {
+  if (meta.connected.length >= MAX_USERS) {
     return NextResponse.redirect(new URL("/?error=room-full", req.url));
   }
 
-  const response = NextResponse.next();
   const token = nanoid();
+  const response = NextResponse.next();
 
   response.cookies.set("x-auth-token", token, {
     path: "/",
@@ -52,4 +54,4 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
 
 export const config = {
   matcher: "/room/:path*",
-}
+};
