@@ -12,12 +12,25 @@ const messageSchema = z.object({
   token: z.string().optional(),
 });
 
+const typingSchema = z.object({
+  username: z.string(),
+  isTyping: z.boolean(),
+});
+
+const readReceiptSchema = z.object({
+  messageId: z.string(),
+  readBy: z.string(),
+  timestamp: z.number(),
+});
+
 const schema = {
   chat: {
     message: messageSchema,
     destroy: z.object({
       isDestroyed: z.literal(true),
     }),
+    typing: typingSchema,
+    read: readReceiptSchema,
   },
 };
 

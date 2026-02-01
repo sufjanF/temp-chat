@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -29,8 +29,13 @@ function Page() {
   const [copyStatus, setCopyStatus] = useState("COPY");
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
   const [isInputFocused, setIsInputFocused] = useState(false);
+  const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
+  const [readReceipts, setReadReceipts] = useState<Map<string, { readBy: string; timestamp: number }[]>>(new Map());
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastTypingStateRef = useRef<boolean>(false);
 
   const { data: ttlData } = useQuery({
     queryKey: ["ttl", roomId],
@@ -82,21 +87,108 @@ function Page() {
         { query: { roomId } }
       );
       setInput("");
+      // Clear typing indicator when message is sent
+      sendTypingIndicator(false);
     },
   });
 
+  // Typing indicator mutation
+  const { mutate: sendTypingIndicator } = useMutation({
+    mutationFn: async (isTyping: boolean) => {
+      if (lastTypingStateRef.current === isTyping) return;
+      lastTypingStateRef.current = isTyping;
+      await client.typing.post(
+        { username, isTyping },
+        { query: { roomId } }
+      );
+    },
+  });
+
+  // Read receipt mutation
+  const { mutate: sendReadReceipt } = useMutation({
+    mutationFn: async (messageId: string) => {
+      await client.read.post(
+        { messageId, readBy: username },
+        { query: { roomId } }
+      );
+    },
+  });
+
+  // Handle typing indicator with debounce
+  const handleTyping = useCallback(() => {
+    sendTypingIndicator(true);
+    
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    
+    typingTimeoutRef.current = setTimeout(() => {
+      sendTypingIndicator(false);
+    }, 2000);
+  }, [sendTypingIndicator]);
+
+  // Copy message to clipboard
+  const copyMessage = useCallback((messageId: string, text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedMessageId(messageId);
+    setTimeout(() => setCopiedMessageId(null), 2000);
+  }, []);
+
   useRealtime({
     channels: [roomId],
-    events: ["chat.message", "chat.destroy"],
-    onData: ({ event }) => {
+    events: ["chat.message", "chat.destroy", "chat.typing", "chat.read"],
+    onData: ({ event, data }) => {
       if (event === "chat.message") {
         refetch();
+        // Send read receipt for new messages from others
+        const messageData = data as { id: string; sender: string };
+        if (messageData.sender !== username) {
+          sendReadReceipt(messageData.id);
+        }
       }
       if (event === "chat.destroy") {
         router.push("/?destroyed=true");
       }
+      if (event === "chat.typing") {
+        const typingData = data as { username: string; isTyping: boolean };
+        if (typingData.username !== username) {
+          setTypingUsers((prev) => {
+            const next = new Set(prev);
+            if (typingData.isTyping) {
+              next.add(typingData.username);
+            } else {
+              next.delete(typingData.username);
+            }
+            return next;
+          });
+        }
+      }
+      if (event === "chat.read") {
+        const readData = data as { messageId: string; readBy: string; timestamp: number };
+        if (readData.readBy !== username) {
+          setReadReceipts((prev) => {
+            const next = new Map(prev);
+            const existing = next.get(readData.messageId) || [];
+            if (!existing.some((r) => r.readBy === readData.readBy)) {
+              next.set(readData.messageId, [...existing, { readBy: readData.readBy, timestamp: readData.timestamp }]);
+            }
+            return next;
+          });
+        }
+      }
     },
   });
+
+  // Send read receipts for existing messages when component mounts
+  useEffect(() => {
+    if (messages?.messages) {
+      messages.messages.forEach((msg) => {
+        if (msg.sender !== username) {
+          sendReadReceipt(msg.id);
+        }
+      });
+    }
+  }, [messages?.messages, username, sendReadReceipt]);
 
   const { mutate: destroyRoom } = useMutation({
     mutationFn: async () => {
@@ -199,12 +291,21 @@ function Page() {
                     msg.sender === username ? "text-orange-500" : "theme-text-secondary"
                   }`}
                 >
-                  {msg.sender === username ? "YOU" : msg.sender.toUpperCase()}
+                  {msg.sender === username ? "YOU" : "THEM"}
                 </span>
 
                 <span className="text-[10px] theme-text-faint font-mono">
                   {format(msg.timestamp, "HH:mm:ss")}
                 </span>
+
+                {/* Copy message button */}
+                <button
+                  onClick={() => copyMessage(msg.id, msg.text)}
+                  className="text-[9px] theme-text-faint hover:theme-text opacity-0 group-hover:opacity-100 transition-opacity tracking-wider"
+                  title="Copy message"
+                >
+                  {copiedMessageId === msg.id ? "COPIED!" : "COPY"}
+                </button>
               </div>
 
               <div className={`text-sm theme-text-secondary leading-relaxed break-all pl-3 border-l-2 ${
@@ -212,9 +313,40 @@ function Page() {
               }`}>
                 {msg.text}
               </div>
+
+              {/* Read receipts for own messages */}
+              {msg.sender === username && readReceipts.get(msg.id)?.length ? (
+                <div className="flex items-center gap-1 mt-1 pl-3">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-orange-500">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  <span className="text-[9px] text-orange-500/70 tracking-wider">READ</span>
+                </div>
+              ) : msg.sender === username ? (
+                <div className="flex items-center gap-1 mt-1 pl-3">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="theme-text-faint">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  <span className="text-[9px] theme-text-faint tracking-wider">SENT</span>
+                </div>
+              ) : null}
             </div>
           </div>
         ))}
+
+        {/* Typing indicator */}
+        {typingUsers.size > 0 && (
+          <div className="flex items-center gap-2 pl-3 animate-pulse">
+            <div className="flex gap-1">
+              <span className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+              <span className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+              <span className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+            </div>
+            <span className="text-[10px] theme-text-muted tracking-wider">
+              THEY are typing...
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="p-3 sm:p-4 theme-border-secondary border-t theme-bg-elevated backdrop-blur-sm relative z-10">
@@ -238,7 +370,12 @@ function Page() {
                 }
               }}
               placeholder="Enter message..."
-              onChange={(e) => setInput(e.target.value)}
+              onChange={(e) => {
+                setInput(e.target.value);
+                if (e.target.value.trim()) {
+                  handleTyping();
+                }
+              }}
               className="w-full theme-bg-input theme-border border focus:border-orange-600/50 focus:outline-none transition-colors theme-text placeholder:theme-text-faint py-2.5 sm:py-3 pl-8 sm:pl-10 pr-3 sm:pr-4 text-sm"
             />
           </div>
@@ -249,7 +386,7 @@ function Page() {
               inputRef.current?.focus();
             }}
             disabled={!input.trim() || isPending}
-            className="bg-gradient-to-r from-orange-500 to-orange-600 theme-text px-4 sm:px-6 text-xs font-bold tracking-wider hover:from-orange-500 hover:to-orange-600 hover-orange-glow transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer flex-shrink-0"
+            className="bg-gradient-to-r from-orange-500 to-orange-600 px-4 sm:px-6 text-xs font-bold tracking-wider hover:from-orange-400 hover:to-orange-500 hover-orange-glow transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer flex-shrink-0 text-white"
           >
             SEND
           </button>

@@ -7,21 +7,39 @@ import { redis } from "@/lib/redis";
 
 import { authMiddleware } from "./auth";
 
-const ROOM_TTL_SECONDS = 60 * 10;
+// Duration options in minutes
+const VALID_DURATIONS = [5, 10, 30, 60] as const;
+const DEFAULT_DURATION_MINUTES = 10;
 
 const rooms = new Elysia({ prefix: "/room" })
-  .post("/create", async () => {
-    const roomId = nanoid();
+  .post(
+    "/create",
+    async ({ body }) => {
+      const roomId = nanoid();
+      
+      // Validate and use duration, fallback to default
+      const durationMinutes = body.duration !== undefined && VALID_DURATIONS.includes(body.duration as typeof VALID_DURATIONS[number])
+        ? body.duration
+        : DEFAULT_DURATION_MINUTES;
+      
+      const ttlSeconds = durationMinutes * 60;
 
-    await redis.hset(`meta:${roomId}`, {
-      connected: [],
-      createdAt: Date.now(),
-    });
+      await redis.hset(`meta:${roomId}`, {
+        connected: [],
+        createdAt: Date.now(),
+        duration: durationMinutes,
+      });
 
-    await redis.expire(`meta:${roomId}`, ROOM_TTL_SECONDS);
+      await redis.expire(`meta:${roomId}`, ttlSeconds);
 
-    return { roomId };
-  })
+      return { roomId };
+    },
+    {
+      body: z.object({
+        duration: z.number().optional(),
+      }),
+    }
+  )
   .use(authMiddleware)
   .get(
     "/ttl",
@@ -103,7 +121,45 @@ const messages = new Elysia({ prefix: "/messages" })
     { query: z.object({ roomId: z.string() }) }
   );
 
-const app = new Elysia({ prefix: "/api" }).use(rooms).use(messages);
+const typing = new Elysia({ prefix: "/typing" })
+  .use(authMiddleware)
+  .post(
+    "/",
+    async ({ body, auth }) => {
+      const { username, isTyping } = body;
+      await realtime.channel(auth.roomId).emit("chat.typing", { username, isTyping });
+    },
+    {
+      query: z.object({ roomId: z.string() }),
+      body: z.object({
+        username: z.string(),
+        isTyping: z.boolean(),
+      }),
+    }
+  );
+
+const readReceipts = new Elysia({ prefix: "/read" })
+  .use(authMiddleware)
+  .post(
+    "/",
+    async ({ body, auth }) => {
+      const { messageId, readBy } = body;
+      await realtime.channel(auth.roomId).emit("chat.read", {
+        messageId,
+        readBy,
+        timestamp: Date.now(),
+      });
+    },
+    {
+      query: z.object({ roomId: z.string() }),
+      body: z.object({
+        messageId: z.string(),
+        readBy: z.string(),
+      }),
+    }
+  );
+
+const app = new Elysia({ prefix: "/api" }).use(rooms).use(messages).use(typing).use(readReceipts);
 
 export const GET = app.fetch;
 export const POST = app.fetch;
