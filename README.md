@@ -6,7 +6,7 @@ Live deployment: https://temp-chat-rho.vercel.app/
 
 Note: Actions are slower than local due to Vercel network latency and serverless overhead.
 
-<video src="https://github.com/user-attachments/assets/657bec11-386e-462b-878e-f1741610510e" controls width="800"></video>
+<video src="https://github.com/user-attachments/assets/a7192bf2-b665-40b0-b5d7-fe626f3bfb18" controls width="800"></video>
 
 ## Features
 
