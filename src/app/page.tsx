@@ -1,5 +1,19 @@
 "use client";
 
+/**
+ * @fileoverview Home/Lobby page component for temp_chat.
+ * 
+ * This module provides the landing page where users can:
+ * - Create new ephemeral chat rooms
+ * - Configure room duration (5, 10, 30, or 60 minutes)
+ * - View status notifications (room destroyed, not found, or full)
+ * 
+ * The page features a cyberpunk-inspired design with ambient animations
+ * and a live countdown preview of the selected duration.
+ * 
+ * @module app/page
+ */
+
 import { Suspense, useEffect, useState } from "react";
 
 import { useMutation } from "@tanstack/react-query";
@@ -9,6 +23,11 @@ import { useTheme } from "@/hooks/use-theme";
 import { useUsername } from "@/hooks/use-username";
 import { client } from "@/lib/client";
 
+/**
+ * Available room duration options with display labels.
+ * Values are in minutes.
+ * @constant {readonly Object[]}
+ */
 const DURATION_OPTIONS = [
   { value: 5, label: "5 min" },
   { value: 10, label: "10 min" },
@@ -16,8 +35,12 @@ const DURATION_OPTIONS = [
   { value: 60, label: "1 hour" },
 ] as const;
 
-// Pre-computed particle positions for deterministic rendering
-
+/**
+ * Pre-computed particle positions for deterministic rendering.
+ * Avoids layout shift and ensures consistent visual appearance
+ * between server and client renders.
+ * @constant {Object[]}
+ */
 const LOBBY_PARTICLES = Array.from({ length: 15 }, (_, i) => ({
   left: `${10 + (i * 6) % 80}%`,
   top: `${15 + (i * 7) % 70}%`,
@@ -25,6 +48,14 @@ const LOBBY_PARTICLES = Array.from({ length: 15 }, (_, i) => ({
   duration: `${4 + (i % 3)}s`,
 }));
 
+/**
+ * Root page component wrapped in Suspense for search params.
+ * 
+ * Suspense boundary is required because useSearchParams() needs
+ * to be wrapped to prevent static rendering bailout in Next.js.
+ * 
+ * @returns {JSX.Element} Page component with Suspense boundary
+ */
 export default function Page() {
   return (
     <Suspense>
@@ -33,10 +64,19 @@ export default function Page() {
   );
 }
 
+/**
+ * Loading overlay displayed during room creation.
+ * 
+ * Shows a spinner and status message while the API call
+ * to create a new room is in progress.
+ * 
+ * @returns {JSX.Element} Full-screen loading overlay
+ */
 function RoomCreationLoader() {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-(--bg-primary)/95 backdrop-blur-md">
       <div className="flex flex-col items-center gap-4">
+        {/* Spinning loader indicator */}
         <div className="w-6 h-6 border-2 border-orange-500/30 border-t-orange-500 rounded-full animate-spin" />
         <span className="text-orange-500 font-mono text-sm tracking-wider">Initializing secure room</span>
       </div>
@@ -44,23 +84,40 @@ function RoomCreationLoader() {
   );
 }
 
+/**
+ * Main lobby component containing the room creation interface.
+ * 
+ * Features:
+ * - Duration selector with visual countdown preview
+ * - Theme toggle (dark/light mode)
+ * - Status notifications for various room states
+ * - Animated background with particles and scan lines
+ * - Room creation with loading state
+ * 
+ * @returns {JSX.Element} The lobby interface
+ */
 function Lobby() {
+  // Initialize username on component mount (generates if needed)
   useUsername();
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
   const searchParams = useSearchParams();
   
+  // UI state
   const [isCreating, setIsCreating] = useState(false);
   const [selectedDuration, setSelectedDuration] = useState(10);
-  const [previewTime, setPreviewTime] = useState(10 * 60);
+  const [previewTime, setPreviewTime] = useState(10 * 60); // Preview countdown in seconds
 
+  // URL query parameters for status notifications
   const wasDestroyed = searchParams.get("destroyed") === "true";
   const error = searchParams.get("error");
 
+  // Reset preview time when duration changes
   useEffect(() => {
     setPreviewTime(selectedDuration * 60);
   }, [selectedDuration]);
 
+  // Countdown timer for the preview display
   useEffect(() => {
     if (previewTime <= 0) {
       setPreviewTime(selectedDuration * 60);
@@ -70,6 +127,11 @@ function Lobby() {
     return () => clearInterval(interval);
   }, [previewTime, selectedDuration]);
 
+  /**
+   * Formats seconds into HH:MM:SS display format.
+   * @param {number} seconds - Total seconds to format
+   * @returns {string} Formatted time string
+   */
   const formatPreviewTime = (seconds: number) => {
     const hrs = Math.floor(seconds / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
@@ -77,9 +139,14 @@ function Lobby() {
     return `${hrs.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
+  /**
+   * Mutation for creating a new chat room.
+   * Includes artificial delay for UX feedback before navigation.
+   */
   const { mutate: createRoom } = useMutation({
     mutationFn: async () => {
       setIsCreating(true);
+      // Brief delay for visual feedback that something is happening
       await new Promise((resolve) => setTimeout(resolve, 1500));
       const res = await client.room.create.post({ duration: selectedDuration });
       if (res.status === 200) {
@@ -93,8 +160,10 @@ function Lobby() {
 
   return (
     <main className="flex min-h-screen-safe flex-col items-center justify-center p-4 bg-grid relative overflow-auto">
+      {/* Room creation loading overlay */}
       {isCreating && <RoomCreationLoader />}
       
+      {/* Theme toggle button - fixed position top right */}
       <button
         onClick={toggleTheme}
         className="absolute top-4 right-4 theme-bg-secondary hover:bg-orange-500/10 p-2.5 theme-text transition-all flex items-center justify-center theme-border border z-20 group"

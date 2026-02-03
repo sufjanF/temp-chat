@@ -1,16 +1,60 @@
+/**
+ * @fileoverview Middleware proxy for room access control and authentication.
+ * 
+ * This module handles the critical security layer for chat room access,
+ * managing user authentication tokens and enforcing room capacity limits.
+ * 
+ * @module proxy
+ * @requires next/server
+ * @requires nanoid
+ * @requires ./lib/redis
+ */
+
 import { type NextRequest, NextResponse } from "next/server";
 import { nanoid } from "nanoid";
 
 import { redis } from "./lib/redis";
 
+/**
+ * Metadata structure stored in Redis for each active chat room.
+ * 
+ * @interface RoomMeta
+ * @extends {Record<string, unknown>}
+ */
 interface RoomMeta extends Record<string, unknown> {
+  /** Array of authentication tokens for connected users */
   connected: string[];
+  /** Unix timestamp (ms) when the room was created */
   createdAt: number;
 }
 
+/**
+ * Maximum number of users allowed per chat room.
+ * This limit ensures intimate, private conversations.
+ * @constant {number}
+ */
 const MAX_USERS = 2;
 
-/** Handles room access control and token assignment */
+/**
+ * Handles room access control and token-based authentication.
+ * 
+ * This middleware function performs the following operations:
+ * 1. Validates that the request is for a valid room URL
+ * 2. Checks if the room exists in Redis
+ * 3. Validates existing authentication tokens
+ * 4. Enforces room capacity limits
+ * 5. Issues new authentication tokens for valid access attempts
+ * 
+ * @async
+ * @function proxy
+ * @param {NextRequest} req - The incoming Next.js request object
+ * @returns {Promise<NextResponse>} Response with appropriate redirect or continuation
+ * 
+ * @example
+ * // Middleware automatically handles requests to /room/[roomId]
+ * // Users without valid tokens receive new ones if room has capacity
+ * // Users with valid tokens are allowed to proceed
+ */
 export async function proxy(req: NextRequest): Promise<NextResponse> {
   const roomMatch = req.nextUrl.pathname.match(/^\/room\/([^/]+)$/);
 
@@ -52,6 +96,13 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
   return response;
 }
 
+/**
+ * Next.js middleware configuration.
+ * Specifies which routes this middleware should intercept.
+ * 
+ * @constant {Object}
+ * @property {string} matcher - URL pattern for room routes
+ */
 export const config = {
   matcher: "/room/:path*",
 };

@@ -1,5 +1,22 @@
 "use client";
 
+/**
+ * @fileoverview Chat room page component for temp_chat.
+ * 
+ * This module provides the main chat interface where users can:
+ * - Send and receive messages in real-time
+ * - View countdown timer until room self-destructs
+ * - See typing indicators from other users
+ * - View read receipts for sent messages
+ * - Manually terminate the room
+ * - Copy room link for sharing
+ * 
+ * Real-time functionality is powered by Upstash Realtime,
+ * providing instant updates for messages, typing, and read status.
+ * 
+ * @module app/room/[roomId]/page
+ */
+
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -11,37 +28,81 @@ import { useUsername } from "@/hooks/use-username";
 import { client } from "@/lib/client";
 import { useRealtime } from "@/lib/realtime-client";
 
+/**
+ * Formats remaining seconds into MM:SS display format.
+ * 
+ * @param {number} seconds - Total seconds remaining
+ * @returns {string} Formatted time string (e.g., "5:30")
+ */
 function formatTimeRemaining(seconds: number): string {
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
   return `${mins}:${secs.toString().padStart(2, "0")}`;
 }
 
+/**
+ * Structure for tracking message read receipts.
+ * @interface ReadReceipt
+ */
 interface ReadReceipt {
+  /** Username of the person who read the message */
   readBy: string;
+  /** Unix timestamp when the message was read */
   timestamp: number;
 }
 
+/**
+ * Main chat room page component.
+ * 
+ * Manages all chat functionality including:
+ * - Message display and sending
+ * - Real-time updates via WebSocket
+ * - Room countdown timer
+ * - Typing indicators
+ * - Read receipts
+ * - Room termination
+ * 
+ * @returns {JSX.Element} The chat room interface
+ */
 export default function Page() {
+  // Route parameters and navigation
   const params = useParams();
   const roomId = params.roomId as string;
   const router = useRouter();
 
+  // User state hooks
   const { username } = useUsername();
   const { theme, toggleTheme } = useTheme();
 
+  // ==================== UI State ====================
+  /** Current input field value */
   const [input, setInput] = useState("");
+  /** Copy link button status text */
   const [copyStatus, setCopyStatus] = useState("COPY");
+  /** Seconds remaining until room expires */
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
+  /** Whether the input field is focused */
   const [isInputFocused, setIsInputFocused] = useState(false);
+  /** Set of usernames currently typing */
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
+  /** Map of message IDs to their read receipts */
   const [readReceipts, setReadReceipts] = useState<Map<string, ReadReceipt[]>>(new Map());
+  /** ID of message that was just copied (for UI feedback) */
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
 
+  // ==================== Refs ====================
+  /** Reference to input element for focus management */
   const inputRef = useRef<HTMLInputElement>(null);
+  /** Timeout for debouncing typing indicator */
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  /** Tracks last sent typing state to avoid duplicate API calls */
   const lastTypingStateRef = useRef(false);
 
+  // ==================== Data Fetching ====================
+  /**
+   * Fetches the room's time-to-live from the server.
+   * Used to initialize the countdown timer.
+   */
   const { data: ttlData } = useQuery({
     queryKey: ["ttl", roomId],
     queryFn: async () => {
@@ -50,18 +111,24 @@ export default function Page() {
     },
   });
 
-  // Initialize timeRemaining from TTL data
+  // Initialize timeRemaining from TTL data (one-time sync)
   const initialTTL = ttlData?.ttl;
   if (timeRemaining === null && initialTTL !== undefined) {
     setTimeRemaining(initialTTL);
   }
 
+  /**
+   * Countdown timer effect.
+   * Decrements every second and redirects when expired.
+   */
   useEffect(() => {
     if (timeRemaining === null || timeRemaining < 0) return;
+    // Room has expired - redirect to home with destroyed flag
     if (timeRemaining === 0) {
       router.push("/?destroyed=true");
       return;
     }
+    // Decrement countdown every second
     const interval = setInterval(() => {
       setTimeRemaining((prev) => {
         if (prev === null || prev <= 1) {
@@ -74,6 +141,10 @@ export default function Page() {
     return () => clearInterval(interval);
   }, [timeRemaining, router]);
 
+  /**
+   * Fetches all messages for the current room.
+   * Refetched when new messages arrive via realtime.
+   */
   const { data: messages, refetch } = useQuery({
     queryKey: ["messages", roomId],
     queryFn: async () => {
@@ -82,6 +153,11 @@ export default function Page() {
     },
   });
 
+  // ==================== Mutations ====================
+  /**
+   * Sends a new message to the chat room.
+   * Clears input and stops typing indicator on success.
+   */
   const { mutate: sendMessage, isPending } = useMutation({
     mutationFn: async ({ text }: { text: string }) => {
       await client.messages.post({ sender: username, text }, { query: { roomId } });
@@ -90,46 +166,78 @@ export default function Page() {
     },
   });
 
+  /**
+   * Broadcasts typing status to other room participants.
+   * Debounced to prevent excessive API calls.
+   */
   const { mutate: sendTypingIndicator } = useMutation({
     mutationFn: async (isTyping: boolean) => {
+      // Skip if state hasn't changed to reduce API calls
       if (lastTypingStateRef.current === isTyping) return;
       lastTypingStateRef.current = isTyping;
       await client.typing.post({ username, isTyping }, { query: { roomId } });
     },
   });
 
+  /**
+   * Sends a read receipt for a specific message.
+   * Called when viewing messages from other users.
+   */
   const { mutate: sendReadReceipt } = useMutation({
     mutationFn: async (messageId: string) => {
       await client.read.post({ messageId, readBy: username }, { query: { roomId } });
     },
   });
 
+  /**
+   * Handles typing state with auto-reset after 2 seconds of inactivity.
+   * Uses ref-based timeout to properly clear previous timeout.
+   */
   const handleTyping = useCallback(() => {
     sendTypingIndicator(true);
+    // Clear existing timeout before setting new one
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    // Auto-stop typing indicator after 2 seconds of no input
     typingTimeoutRef.current = setTimeout(() => sendTypingIndicator(false), 2000);
   }, [sendTypingIndicator]);
 
+  /**
+   * Copies message text to clipboard and shows feedback.
+   */
   const copyMessage = useCallback((messageId: string, text: string) => {
     navigator.clipboard.writeText(text);
     setCopiedMessageId(messageId);
     setTimeout(() => setCopiedMessageId(null), 2000);
   }, []);
 
+  // ==================== Realtime Subscription ====================
+  /**
+   * Subscribes to real-time events for the current room.
+   * Handles:
+   * - chat.message: New message received
+   * - chat.destroy: Room terminated by other user
+   * - chat.typing: Typing indicator updates
+   * - chat.read: Read receipt notifications
+   */
   useRealtime({
     channels: [roomId],
     events: ["chat.message", "chat.destroy", "chat.typing", "chat.read"],
     onData: ({ event, data }) => {
+      // Handle new message - refetch messages and send read receipt
       if (event === "chat.message") {
         refetch();
         const msg = data as { id: string; sender: string };
+        // Auto-send read receipt for messages from others
         if (msg.sender !== username) sendReadReceipt(msg.id);
       }
+      // Handle room destruction - redirect to home
       if (event === "chat.destroy") {
         router.push("/?destroyed=true");
       }
+      // Handle typing indicator updates
       if (event === "chat.typing") {
         const typing = data as { username: string; isTyping: boolean };
+        // Only update state for other users' typing status
         if (typing.username !== username) {
           setTypingUsers((prev) => {
             const next = new Set(prev);
@@ -142,12 +250,15 @@ export default function Page() {
           });
         }
       }
+      // Handle read receipt notifications
       if (event === "chat.read") {
         const receipt = data as { messageId: string; readBy: string; timestamp: number };
+        // Only track receipts from other users
         if (receipt.readBy !== username) {
           setReadReceipts((prev) => {
             const next = new Map(prev);
             const existing = next.get(receipt.messageId) || [];
+            // Prevent duplicate receipts from same user
             if (!existing.some((r) => r.readBy === receipt.readBy)) {
               next.set(receipt.messageId, [...existing, { readBy: receipt.readBy, timestamp: receipt.timestamp }]);
             }
@@ -158,6 +269,10 @@ export default function Page() {
     },
   });
 
+  /**
+   * Sends read receipts for all existing messages on mount.
+   * Ensures proper read status when joining an ongoing conversation.
+   */
   useEffect(() => {
     if (messages?.messages) {
       messages.messages.forEach((msg) => {
@@ -166,25 +281,38 @@ export default function Page() {
     }
   }, [messages?.messages, username, sendReadReceipt]);
 
+  /**
+   * Mutation to terminate the room immediately.
+   * Triggers chat.destroy event for all connected users.
+   */
   const { mutate: destroyRoom } = useMutation({
     mutationFn: () => client.room.delete(null, { query: { roomId } }),
   });
 
+  /**
+   * Copies the room URL to clipboard for sharing.
+   * Shows brief "COPIED!" feedback on the button.
+   */
   const copyLink = () => {
     navigator.clipboard.writeText(window.location.href);
     setCopyStatus("COPIED!");
     setTimeout(() => setCopyStatus("COPY"), 2000);
   };
 
+  // ==================== Render ====================
   return (
     <main className="flex flex-col h-screen-safe max-h-screen-safe overflow-hidden bg-grid relative">
+      {/* Ambient glow effect at top of page */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-200 h-50 bg-orange-600/5 rounded-full blur-3xl pointer-events-none" />
       
+      {/* ==================== Header Section ==================== */}
       <header className="theme-border-secondary border-b p-3 sm:p-4 flex flex-wrap items-center justify-between gap-3 theme-bg-elevated backdrop-blur-sm relative z-10">
+        {/* Room info and copy link */}
         <div className="flex items-center gap-3 sm:gap-5 min-w-0 flex-1">
           <div className="flex flex-col min-w-0">
             <span className="text-[10px] theme-text-muted uppercase tracking-wider">Session</span>
             <div className="flex items-center gap-2 mt-0.5">
+              {/* Truncated room ID display */}
               <span className="font-mono text-xs sm:text-sm truncate theme-text max-w-20 sm:max-w-none">{roomId.slice(0, 12)}</span>
               <button
                 onClick={copyLink}
@@ -195,8 +323,10 @@ export default function Page() {
             </div>
           </div>
 
+          {/* Vertical divider */}
           <div className="h-8 w-px theme-border-secondary border-l shrink-0" />
 
+          {/* Countdown timer display */}
           <div className="flex flex-col shrink-0">
             <span className="text-[10px] theme-text-muted uppercase tracking-wider">Countdown</span>
             <span className="text-xs sm:text-sm font-bold font-mono mt-0.5 text-orange-500">

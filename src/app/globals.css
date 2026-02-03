@@ -1,56 +1,98 @@
+/**
+ * @fileoverview Global styles and CSS custom properties for temp_chat.
+ * 
+ * This stylesheet provides:
+ * - Theme variables (dark/light mode) via CSS custom properties
+ * - Base typography and scrollbar styling
+ * - Utility classes for theme-aware colors
+ * - Background patterns and visual effects
+ * - Animation keyframes for UI interactions
+ * 
+ * Theme switching is handled by changing the [data-theme] attribute
+ * on the document root, which updates all CSS custom properties.
+ * 
+ * @see {@link src/hooks/use-theme.tsx} for theme management logic
+ */
+
 @import "tailwindcss";
 
-/* ========== THEME VARIABLES ========== */
+/* ==========================================================================
+   THEME VARIABLES
+   CSS custom properties that change based on [data-theme] attribute.
+   These provide the foundation for the entire color system.
+   ========================================================================== */
 
 :root,
 [data-theme="dark"] {
-  --bg-primary: #0c0a09;
-  --bg-secondary: #1c1917;
-  --bg-tertiary: #292524;
-  --bg-elevated: rgba(28, 25, 23, 0.5);
-  --bg-input: rgba(12, 10, 9, 0.8);
-  --text-primary: #e7e5e4;
-  --text-secondary: #a8a29e;
-  --text-muted: #78716c;
-  --text-faint: #57534e;
-  --border-primary: #44403c;
-  --border-secondary: rgba(68, 64, 60, 0.6);
-  --glow-opacity: 0.15;
-  --grid-opacity: 0.03;
+  /* Background colors - Stone/warm black palette */
+  --bg-primary: #0c0a09;           /* Main background */
+  --bg-secondary: #1c1917;         /* Cards, elevated surfaces */
+  --bg-tertiary: #292524;          /* Hover states, subtle highlights */
+  --bg-elevated: rgba(28, 25, 23, 0.5);  /* Glassmorphism overlays */
+  --bg-input: rgba(12, 10, 9, 0.8);      /* Input field backgrounds */
+  
+  /* Text colors - Stone palette for readability */
+  --text-primary: #e7e5e4;         /* Primary content text */
+  --text-secondary: #a8a29e;       /* Secondary/supporting text */
+  --text-muted: #78716c;           /* Muted labels, timestamps */
+  --text-faint: #57534e;           /* Placeholder, disabled text */
+  
+  /* Border colors */
+  --border-primary: #44403c;       /* Primary borders */
+  --border-secondary: rgba(68, 64, 60, 0.6);  /* Subtle dividers */
+  
+  /* Effect opacities */
+  --glow-opacity: 0.15;            /* Orange glow intensity */
+  --grid-opacity: 0.03;            /* Background grid visibility */
 }
 
 [data-theme="light"] {
-  --bg-primary: #f5f0eb;
-  --bg-secondary: #ebe5de;
-  --bg-tertiary: #e0d9d1;
-  --bg-elevated: rgba(235, 229, 222, 0.7);
-  --bg-input: rgba(250, 247, 245, 0.9);
-  --text-primary: #1c1917;
-  --text-secondary: #44403c;
-  --text-muted: #57534e;
-  --text-faint: #78716c;
-  --border-primary: #d6cfc7;
-  --border-secondary: rgba(214, 207, 199, 0.8);
-  --glow-opacity: 0.1;
-  --grid-opacity: 0.06;
+  /* Background colors - Warm cream palette */
+  --bg-primary: #f5f0eb;           /* Main background */
+  --bg-secondary: #ebe5de;         /* Cards, elevated surfaces */
+  --bg-tertiary: #e0d9d1;          /* Hover states, subtle highlights */
+  --bg-elevated: rgba(235, 229, 222, 0.7);  /* Glassmorphism overlays */
+  --bg-input: rgba(250, 247, 245, 0.9);     /* Input field backgrounds */
+  
+  /* Text colors - Dark stone for contrast */
+  --text-primary: #1c1917;         /* Primary content text */
+  --text-secondary: #44403c;       /* Secondary/supporting text */
+  --text-muted: #57534e;           /* Muted labels, timestamps */
+  --text-faint: #78716c;           /* Placeholder, disabled text */
+  
+  /* Border colors */
+  --border-primary: #d6cfc7;       /* Primary borders */
+  --border-secondary: rgba(214, 207, 199, 0.8);  /* Subtle dividers */
+  
+  /* Effect opacities - Reduced for light mode */
+  --glow-opacity: 0.1;             /* Orange glow intensity */
+  --grid-opacity: 0.06;            /* Background grid visibility */
 }
 
-/* ========== BASE STYLES ========== */
+/* ==========================================================================
+   BASE STYLES
+   Core document and body styling for consistent rendering.
+   ========================================================================== */
 
 html,
 body {
   height: 100%;
-  overflow: hidden;
+  overflow: hidden; /* Prevents bounce scrolling on iOS */
 }
 
 body {
   background: var(--bg-primary);
   color: var(--text-primary);
   font-family: var(--font-jetbrains-mono);
+  /* Smooth theme transitions */
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* Mobile viewport height fix */
+/* 
+ * Mobile viewport height utilities.
+ * Uses dvh (dynamic viewport height) to account for mobile browser chrome.
+ * Fixes the "100vh is too tall on mobile" issue.
+ */
 .h-screen-safe {
   height: 100dvh;
 }
@@ -63,58 +105,96 @@ body {
   max-height: 100dvh;
 }
 
-/* ========== SCROLLBAR ========== */
+/* ==========================================================================
+   SCROLLBAR STYLING
+   Custom scrollbar appearance for WebKit browsers (Chrome, Safari, Edge).
+   Creates a minimal, theme-aware scrollbar design.
+   ========================================================================== */
 
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 6px; /* Slim scrollbar width */
 }
 
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: transparent; /* Invisible track */
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--border-primary);
+  background: var(--border-primary); /* Theme-aware thumb color */
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted);
+  background: var(--text-muted); /* Lighter on hover */
 }
 
-/* ========== BACKGROUNDS ========== */
+/* ==========================================================================
+   BACKGROUND PATTERNS
+   Decorative background effects for the cyberpunk aesthetic.
+   ========================================================================== */
 
+/**
+ * Grid pattern background.
+ * Creates a subtle tech/blueprint grid effect using CSS gradients.
+ */
 .bg-grid {
   background-color: var(--bg-primary);
   background-image: 
     linear-gradient(rgba(234, 88, 12, var(--grid-opacity)) 1px, transparent 1px),
     linear-gradient(90deg, rgba(234, 88, 12, var(--grid-opacity)) 1px, transparent 1px);
-  background-size: 32px 32px;
+  background-size: 32px 32px; /* Grid cell size */
 }
 
+/**
+ * Radial vignette overlay.
+ * Darkens edges to focus attention on center content.
+ */
 .bg-radial-vignette {
   background: radial-gradient(ellipse at center, transparent 0%, transparent 50%, rgba(0, 0, 0, 0.4) 100%);
 }
 
+/**
+ * Noise texture overlay.
+ * Adds subtle film grain effect for visual interest.
+ * Uses inline SVG for performance (no additional HTTP request).
+ */
 .bg-noise {
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
 }
 
+/**
+ * CRT scanlines effect.
+ * Creates horizontal lines reminiscent of old CRT monitors.
+ */
 .bg-scanlines {
   background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0, 0, 0, 0.1) 2px, rgba(0, 0, 0, 0.1) 4px);
 }
 
-/* ========== GLOW & SELECTION ========== */
+/* ==========================================================================
+   GLOW & SELECTION
+   Accent glow effects and text selection styling.
+   ========================================================================== */
 
+/**
+ * Orange glow box-shadow utility.
+ * Used for accent elements and hover states.
+ */
 .glow-accent {
   box-shadow: 0 0 20px rgba(234, 88, 12, var(--glow-opacity));
 }
 
+/**
+ * Text selection color.
+ * Applies orange tint to selected text for brand consistency.
+ */
 ::selection {
   background: rgba(234, 88, 12, 0.3);
 }
 
-/* ========== CURSOR DEFAULTS ========== */
+/* ==========================================================================
+   CURSOR DEFAULTS
+   Ensures consistent cursor behavior across interactive elements.
+   ========================================================================== */
 
 button,
 a,
@@ -147,10 +227,17 @@ button:disabled,
   border-color: rgba(220, 38, 38, 0.5) !important;
 }
 
+/**
+ * Orange glow on hover for primary action buttons.
+ */
 .hover-orange-glow:hover {
   box-shadow: 0 0 18px rgba(234, 88, 12, 0.35);
 }
 
+/**
+ * Mobile touch target sizing.
+ * Ensures buttons are at least 36x36px for accessibility.
+ */
 @media (max-width: 640px) {
   button, a, [role="button"] {
     min-height: 36px;
@@ -158,28 +245,36 @@ button:disabled,
   }
 }
 
-/* ========== KEYFRAMES ========== */
+/* ==========================================================================
+   KEYFRAMES
+   Animation definitions for UI effects.
+   ========================================================================== */
 
+/** Slow rotation for decorative elements */
 @keyframes spin-slow {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
 
+/** Reverse rotation for layered effects */
 @keyframes spin-reverse {
   from { transform: rotate(360deg); }
   to { transform: rotate(0deg); }
 }
 
+/** Pulsing ring effect for loading states */
 @keyframes pulse-ring {
   0%, 100% { transform: scale(1); opacity: 0.4; }
   50% { transform: scale(1.05); opacity: 0.8; }
 }
 
+/** Glow pulsing for accent highlights */
 @keyframes pulse-glow {
   0%, 100% { opacity: 0.3; transform: scale(1); }
   50% { opacity: 0.6; transform: scale(1.1); }
 }
 
+/** Floating particle animation for ambient effects */
 @keyframes float-particle {
   0%, 100% { transform: translateY(0) translateX(0); opacity: 0.3; }
   25% { transform: translateY(-20px) translateX(10px); opacity: 0.6; }
@@ -187,12 +282,14 @@ button:disabled,
   75% { transform: translateY(-30px) translateX(5px); opacity: 0.5; }
 }
 
+/** Indeterminate progress bar animation */
 @keyframes progress-indeterminate {
   0% { transform: translateX(-100%); width: 40%; }
   50% { width: 60%; }
   100% { transform: translateX(250%); width: 40%; }
 }
 
+/** Vertical scan line effect */
 @keyframes scan-line {
   0% { top: -2px; opacity: 0; }
   5% { opacity: 1; }
@@ -200,11 +297,13 @@ button:disabled,
   100% { top: 100%; opacity: 0; }
 }
 
+/** Subtle breathing/scaling effect */
 @keyframes breathe {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.02); }
 }
 
+/** Flicker effect for the logo underscore */
 @keyframes flicker {
   0%, 100% { opacity: 1; }
   5% { opacity: 0.8; }
@@ -216,6 +315,7 @@ button:disabled,
   60% { opacity: 1; }
 }
 
+/** Glowing border pulse for cards */
 @keyframes border-pulse {
   0%, 100% {
     box-shadow: 0 0 0 0 rgba(234, 88, 12, 0), inset 0 0 20px rgba(234, 88, 12, 0);
@@ -225,6 +325,7 @@ button:disabled,
   }
 }
 
+/** Typewriter text reveal animation */
 @keyframes typewriter-reveal {
   0% { clip-path: inset(0 100% 0 0); }
   40% { clip-path: inset(0 0 0 0); }
@@ -232,6 +333,7 @@ button:disabled,
   100% { clip-path: inset(0 100% 0 0); }
 }
 
+/** Typewriter cursor movement */
 @keyframes typewriter-cursor {
   0% { right: calc(100% - 3px); }
   40% { right: 0; }
@@ -239,11 +341,15 @@ button:disabled,
   100% { right: calc(100% - 3px); }
 }
 
+/** Blinking cursor effect */
 @keyframes cursor-blink {
   0%, 100% { opacity: 1; }
   50% { opacity: 0; }
 }
-/* ========== ANIMATION CLASSES ========== */
+/* ==========================================================================
+   ANIMATION CLASSES
+   Utility classes that apply the keyframe animations defined above.
+   ========================================================================== */
 
 .animate-spin-slow { animation: spin-slow 8s linear infinite; }
 .animate-spin-reverse { animation: spin-reverse 6s linear infinite; }
@@ -256,15 +362,24 @@ button:disabled,
 .animate-flicker { animation: flicker 3s ease-in-out infinite; }
 .animate-border-pulse { animation: border-pulse 4s ease-in-out infinite; }
 
+/**
+ * Logo dissolve effect.
+ * Creates a typewriter-style text reveal with animated cursor.
+ * Used for the main "temp_chat" logo animation.
+ */
 .logo-dissolve {
   position: relative;
   display: inline-block;
   overflow: hidden;
   clip-path: inset(0 100% 0 0);
   animation: typewriter-reveal 8s steps(9) infinite;
-  will-change: clip-path;
+  will-change: clip-path; /* Performance optimization */
 }
 
+/**
+ * Animated cursor pseudo-element for logo.
+ * Creates a blinking vertical bar that follows the typewriter reveal.
+ */
 .logo-dissolve::before {
   content: '';
   position: absolute;
