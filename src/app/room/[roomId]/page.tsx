@@ -111,12 +111,6 @@ export default function Page() {
     },
   });
 
-  // Initialize timeRemaining from TTL data (one-time sync)
-  const initialTTL = ttlData?.ttl;
-  if (timeRemaining === null && initialTTL !== undefined) {
-    setTimeRemaining(initialTTL);
-  }
-
   /**
    * Countdown timer effect.
    * Decrements every second and redirects when expired.
@@ -152,6 +146,13 @@ export default function Page() {
       return res.data;
     },
   });
+
+  // Initialize timeRemaining from TTL data only after messages have loaded,
+  // so the countdown doesn't tick while the page is still loading.
+  const initialTTL = ttlData?.ttl;
+  if (timeRemaining === null && initialTTL !== undefined && messages !== undefined) {
+    setTimeRemaining(initialTTL);
+  }
 
   // ==================== Mutations ====================
   /**
