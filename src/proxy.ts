@@ -69,6 +69,15 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
     return NextResponse.redirect(new URL("/?error=room-not-found", req.url));
   }
 
+  // Detect non-browser requests (iMessage link preview bots, crawlers, etc.)
+  // Real browsers always send the Sec-Fetch-Dest header; bots/unfurlers do not.
+  // Without this check, iMessage's URL preview fetcher creates an auth token
+  // when the room link is texted, consuming a slot and causing "room full."
+  const secFetchDest = req.headers.get("sec-fetch-dest");
+  if (!secFetchDest) {
+    return NextResponse.next();
+  }
+
   const existingToken = req.cookies.get("x-auth-token")?.value;
 
   if (existingToken && meta.connected.includes(existingToken)) {
@@ -86,7 +95,7 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
     path: "/",
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
+    sameSite: "lax",
   });
 
   await redis.hset(`meta:${roomId}`, {
